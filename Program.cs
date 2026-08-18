@@ -1,7 +1,10 @@
-using MovieAPI.Services;
+using Microsoft.EntityFrameworkCore;
 using MovieAPI.DTOs;
 using MovieAPI.Extensions;
 using MovieAPI.Models;
+using MovieAPI.Services;
+using MovieAPI.Data;
+using System;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +16,10 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddHttpClient<TmdbService>();
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
