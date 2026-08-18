@@ -1,4 +1,6 @@
-﻿using static System.Net.WebRequestMethods;
+﻿using System.Text.Json;
+using static System.Net.WebRequestMethods;
+using MovieAPI.DTOs;
 
 namespace MovieAPI.Services;
 
@@ -14,7 +16,7 @@ public class TmdbService
             ?? throw new InvalidOperationException("API Key bulunamadı.");
     }
 
-    public async Task<string> GetPopularMoviesAsync()
+    public async Task<TmdbPopularMoviesWrapper?> GetPopularMoviesAsync()
     {
         string url = $"https://api.themoviedb.org/3/movie/popular?api_key={_apiKey}";
 
@@ -22,6 +24,8 @@ public class TmdbService
 
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadAsStringAsync();
+        string json = await response.Content.ReadAsStringAsync();
+
+        return JsonSerializer.Deserialize<TmdbPopularMoviesWrapper>(json);
     }
 }

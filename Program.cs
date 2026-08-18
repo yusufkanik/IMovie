@@ -1,4 +1,5 @@
 using MovieAPI.Services;
+using MovieAPI.DTOs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,9 +29,9 @@ app.MapControllers();
 // Test the tmdb services if it works correctly
 app.MapGet("/test-tmdb", async (TmdbService TmdbService) =>
 {
-    string StringJson = await TmdbService.GetPopularMoviesAsync();
+    var wrapper = await TmdbService.GetPopularMoviesAsync();
 
-    return Results.Content(StringJson, "application/json");
+    return wrapper;
 });
 
 app.Run();
