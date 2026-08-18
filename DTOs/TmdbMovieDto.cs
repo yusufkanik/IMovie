@@ -16,7 +16,7 @@ namespace MovieAPI.DTOs
         [JsonPropertyName("poster_path")]
         public string? PosterPath {  get; set; }
 
-        [JsonPropertyName("release_name")]
+        [JsonPropertyName("release_date")]
         public string? ReleaseDate { get; set; }
 
         [JsonPropertyName("vote_average")]

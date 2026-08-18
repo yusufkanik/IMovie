@@ -1,5 +1,7 @@
 using MovieAPI.Services;
 using MovieAPI.DTOs;
+using MovieAPI.Extensions;
+using MovieAPI.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,7 +33,23 @@ app.MapGet("/test-tmdb", async (TmdbService TmdbService) =>
 {
     var wrapper = await TmdbService.GetPopularMoviesAsync();
 
-    return wrapper;
+    if (wrapper?.Results is null)
+    {
+        return Results.NotFound("No data from TMDB.");
+    }
+
+    List<TmdbMovieDto> Dtos = wrapper.Results;
+    List<Movie> movieList = Dtos.ToModelList();
+
+    foreach (Movie movie in movieList)
+    {
+        Console.WriteLine(movie.TmdbId);
+        Console.WriteLine(movie.Title);
+        Console.WriteLine(movie.VoteAverage);
+        Console.WriteLine("\n");
+    }
+
+    return Results.Ok(movieList);
 });
 
 app.Run();
