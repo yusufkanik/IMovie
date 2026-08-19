@@ -26,5 +26,20 @@ namespace MovieAPI.Extensions
         {
             return dtos.Select(dto => dto.ToModel()).ToList();
         }
+
+        public static MovieResponseDTO ToResponseDto(this Movie movie)
+        {
+            return new MovieResponseDTO
+            {
+                Id = movie.Id,
+                TmdbId = movie.TmdbId,
+                Title = movie.Title,
+                Overview = movie.Overview,
+                PosterUrl = string.IsNullOrEmpty(movie.PosterPath) ?
+                    null : $"https://image.tmdb.org/t/p/w500{movie.PosterPath}",
+                Rating = movie.VoteAverage,
+                VoteCount = movie.VoteCount
+            };
+        }
     }
 }
