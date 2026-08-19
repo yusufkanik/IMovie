@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using static System.Net.WebRequestMethods;
 using MovieAPI.DTOs;
-using MovieAPI.Common
+using MovieAPI.Common;
 
 namespace MovieAPI.Services;
 
