@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore
+using Microsoft.EntityFrameworkCore;
+
 
 using MovieAPI.Data;
+using MovieAPI.DTOs;
 using MovieAPI.Extensions;
 using MovieAPI.Services;
 using System.Text;
@@ -75,5 +77,26 @@ namespace MovieAPI.Controllers
             return Ok(new { Message = $"{pageCount} sayfa işlendi. {totalAdded} yeni film eklendi. {totalUpdated} film güncellendi." });
         }
 
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<MovieResponseDTO>>> GetMovies()
+        {
+            var movies = await _context.Movies.AsNoTracking().ToListAsync();
+            var responseDTOs = movies.ToResponseDTOList();
+
+            return Ok(responseDTOs);
+        }
+
+        [HttpGet("{id: int}")]
+        public async Task<ActionResult<MovieResponseDTO>> GetMovieById(int id) 
+        {
+            var movie = await _context.Movies.FindAsync(id);
+
+            if (movie == null)
+            {
+                return NotFound(new { Message = "Aradığınız film bulunamadı." });
+            }
+
+            return Ok(movie.ToResponseDto());
+        }
     }
 }

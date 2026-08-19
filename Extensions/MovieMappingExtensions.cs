@@ -27,6 +27,8 @@ namespace MovieAPI.Extensions
             return dtos.Select(dto => dto.ToModel()).ToList();
         }
 
+        // DTOs for sending the response to the frontend
+
         public static MovieResponseDTO ToResponseDto(this Movie movie)
         {
             return new MovieResponseDTO
@@ -40,6 +42,11 @@ namespace MovieAPI.Extensions
                 Rating = movie.VoteAverage,
                 VoteCount = movie.VoteCount
             };
+        }
+
+        public static IEnumerable<MovieResponseDTO> ToResponseDTOList(this IEnumerable<Movie> movies)
+        {
+            return movies.Select(m => ToResponseDto(m)).ToList();
         }
     }
 }
