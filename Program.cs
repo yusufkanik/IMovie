@@ -35,28 +35,5 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Test the tmdb services if it works correctly
-app.MapGet("/test-tmdb", async (TmdbService TmdbService) =>
-{
-    var wrapper = await TmdbService.GetPopularMoviesAsync();
-
-    if (wrapper?.Results is null)
-    {
-        return Results.NotFound("No data from TMDB.");
-    }
-
-    List<TmdbMovieDto> Dtos = wrapper.Results;
-    List<Movie> movieList = Dtos.ToModelList();
-
-    foreach (Movie movie in movieList)
-    {
-        Console.WriteLine(movie.TmdbId);
-        Console.WriteLine(movie.Title);
-        Console.WriteLine(movie.VoteAverage);
-        Console.WriteLine("\n");
-    }
-
-    return Results.Ok(movieList);
-});
 
 app.Run();
