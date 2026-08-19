@@ -77,16 +77,43 @@ namespace MovieAPI.Controllers
             return Ok(new { Message = $"{pageCount} sayfa işlendi. {totalAdded} yeni film eklendi. {totalUpdated} film güncellendi." });
         }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<MovieResponseDTO>>> GetMovies()
-        {
-            var movies = await _context.Movies.AsNoTracking().ToListAsync();
-            var responseDTOs = movies.ToResponseDTOList();
+        [HttpGet]  // Get endpoint using query parameters
+        public async Task<ActionResult<PagedResponseDTO<MovieResponseDTO>>> GetMovies(
+            [FromQuery] string? search,
+            [FromQuery] string? sortBy,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
 
-            return Ok(responseDTOs);
+        {
+            var query = _context.Movies.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+            {
+                query = query.Where(m => m.Title.ToLower().Contains(search.ToLower()));
+            }
+
+            if (!string.IsNullOrEmpty(sortBy))
+            {
+                query = sortBy.ToLower() switch
+                {
+                    "vote" => query.OrderByDescending(m => m.VoteAverage),
+                    "votecount" => query.OrderByDescending(m => m.VoteCount),
+                    "date" => query.OrderByDescending(m => m.ReleaseDate), ////////////////////////////////////////////////
+                    _ => query.OrderByDescending(m => m.Id)
+                };
+            }
+
+            var totalRecords = query.Count();
+
+            var movies = await query.Skip((page - 1) * pageSize)
+                .Take(pageSize).ToListAsync();
+
+            var dtos = movies.ToResponseDTOList();
+
+            return Ok(new PagedResponseDTO<MovieResponseDTO>(dtos, page, pageSize, totalRecords));
         }
 
-        [HttpGet("{id: int}")]
+        [HttpGet("{id:int}")]
         public async Task<ActionResult<MovieResponseDTO>> GetMovieById(int id) 
         {
             var movie = await _context.Movies.FindAsync(id);
