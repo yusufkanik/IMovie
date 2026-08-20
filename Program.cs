@@ -1,9 +1,13 @@
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
+using MovieAPI.Data;
 using MovieAPI.DTOs;
 using MovieAPI.Extensions;
+using MovieAPI.Middlewares;
 using MovieAPI.Models;
 using MovieAPI.Services;
-using MovieAPI.Data;
+using MovieAPI.Validators;
 using System;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,7 +24,12 @@ builder.Services.AddHttpClient<TmdbService>();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddValidatorsFromAssemblyContaining<GetMoviesQueryValidator>();
+builder.Services.AddFluentValidationAutoValidation();
+
 var app = builder.Build();
+
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

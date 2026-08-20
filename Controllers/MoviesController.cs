@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 using MovieAPI.Data;
 using MovieAPI.DTOs;
+using MovieAPI.Exceptions;
 using MovieAPI.Extensions;
 using MovieAPI.Services;
 using System.Text;
@@ -38,12 +39,7 @@ namespace MovieAPI.Controllers
 
                 if (!response.IsSuccess)
                 {
-                    return StatusCode(response.StatusCode, new
-                    {
-                        Success = false,
-                        Error = response.Message,
-                        FailedPage = page
-                    });
+                    throw new BadRequestException($"TMDB Servis Hatası (Sayfa {page}): {response.Message}");
                 }
 
                 var movies = response.Data?.Results?.ToModelList();
@@ -78,49 +74,45 @@ namespace MovieAPI.Controllers
         }
 
         [HttpGet]  // Get endpoint using query parameters
-        public async Task<ActionResult<PagedResponseDTO<MovieResponseDTO>>> GetMovies(
-            [FromQuery] string? search,
-            [FromQuery] string? sortBy,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<PagedResponseDTO<MovieResponseDTO>>> GetMovies([FromQuery] GetMoviesQueryDTO request)
 
         {
             var query = _context.Movies.AsNoTracking().AsQueryable();
 
-            if (!string.IsNullOrEmpty(search))
+            if (!string.IsNullOrEmpty(request.Search))
             {
-                query = query.Where(m => m.Title.ToLower().Contains(search.ToLower()));
+                query = query.Where(m => m.Title.ToLower().Contains(request.Search.ToLower()));
             }
 
-            if (!string.IsNullOrEmpty(sortBy))
+            if (!string.IsNullOrEmpty(request.SortBy))
             {
-                query = sortBy.ToLower() switch
+                query = request.SortBy.ToLower() switch
                 {
                     "vote" => query.OrderByDescending(m => m.VoteAverage),
                     "votecount" => query.OrderByDescending(m => m.VoteCount),
-                    "date" => query.OrderByDescending(m => m.ReleaseDate), ////////////////////////////////////////////////
+                    "date" => query.OrderByDescending(m => string.IsNullOrEmpty(m.ReleaseDate) ? "0000-00-00": m.ReleaseDate), 
                     _ => query.OrderByDescending(m => m.Id)
                 };
             }
 
-            var totalRecords = query.Count();
+            var totalRecords = await query.CountAsync();
 
-            var movies = await query.Skip((page - 1) * pageSize)
-                .Take(pageSize).ToListAsync();
+            var movies = await query.Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize).ToListAsync();
 
             var dtos = movies.ToResponseDTOList();
 
-            return Ok(new PagedResponseDTO<MovieResponseDTO>(dtos, page, pageSize, totalRecords));
+            return Ok(new PagedResponseDTO<MovieResponseDTO>(dtos, request.Page, request.PageSize, totalRecords));
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<MovieResponseDTO>> GetMovieById(int id) 
+        public async Task<IActionResult> GetMovieById(int id) 
         {
             var movie = await _context.Movies.FindAsync(id);
 
             if (movie == null)
             {
-                return NotFound(new { Message = "Aradığınız film bulunamadı." });
+                throw new NotFoundException($"{id} ID'li film veritabanında bulunamadı.");
             }
 
             return Ok(movie.ToResponseDto());
