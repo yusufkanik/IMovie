@@ -57,4 +57,54 @@ public class TmdbService
         }
 
     }
+
+    public async Task<ServiceResponse<TmdbSearchResponse>> SearchMoviesAsync(string query, int page)
+    {
+        var url = $"search/movie?query={Uri.EscapeDataString(query)}&page={page}&language=en-US";
+        var response = await _httpClient.GetAsync(url);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return new ServiceResponse<TmdbSearchResponse>
+            {
+                IsSuccess = false,
+                Message = $"TMDB Arama Hatası: {response.StatusCode}",
+                StatusCode = (int)response.StatusCode
+            };
+        }
+
+        var stringData = await response.Content.ReadAsStringAsync();
+
+        var data = JsonSerializer.Deserialize<TmdbSearchResponse>(stringData);
+
+        return new ServiceResponse<TmdbSearchResponse>
+        {
+            Data = data
+        };
+    }
+
+    public async Task<ServiceResponse<TmdbMovieDto>> GetMovieByTmdbIdAsync(int tmdbId)
+    {
+        var url = $"movie/{tmdbId}?language=en-US";
+        var response = await _httpClient.GetAsync(url);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return new ServiceResponse<TmdbMovieDto>
+            {
+                IsSuccess = false,
+                Message = $"TMDB'den film bulunamadı (ID: {tmdbId}).",
+                StatusCode = (int)response.StatusCode
+            };
+        }
+
+        var stringData = await response.Content.ReadAsStringAsync();
+        var dto = JsonSerializer.Deserialize<TmdbMovieDto>(stringData);
+
+        return new ServiceResponse<TmdbMovieDto>
+        {
+            Data = dto,
+
+        };
+    }
 }

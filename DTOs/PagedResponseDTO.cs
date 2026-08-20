@@ -1,5 +1,6 @@
 ﻿namespace MovieAPI.DTOs
 {
+    // class to handle the paged responses and send them to frontend
     public class PagedResponseDTO<T>
     {
         public IEnumerable<T> Data { get; set; } = [];

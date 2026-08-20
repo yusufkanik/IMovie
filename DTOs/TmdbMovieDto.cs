@@ -2,6 +2,7 @@
 namespace MovieAPI.DTOs
 
 {
+    // class to receive the movie info from the TMDB API
     public class TmdbMovieDto
     {
         [JsonPropertyName("id")]

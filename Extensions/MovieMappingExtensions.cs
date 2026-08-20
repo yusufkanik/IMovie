@@ -48,5 +48,24 @@ namespace MovieAPI.Extensions
         {
             return movies.Select(m => ToResponseDto(m)).ToList();
         }
+
+        public static MovieResponseDTO ToResponseDto(this TmdbMovieDto dto)
+        {
+            return new MovieResponseDTO
+            {
+                Id = 0, // DB kaydı henüz olmadığı için
+                TmdbId = dto.Id,
+                Title = dto.Title ?? string.Empty,
+                Overview = dto.Overview ?? string.Empty,
+                PosterUrl = dto.PosterPath,
+                Rating = dto.VoteAverage,
+                VoteCount = dto.VoteCount
+            };
+        }
+
+        public static IEnumerable<MovieResponseDTO> ToResponseDTOList(this IEnumerable<TmdbMovieDto> dtos)
+        {
+            return dtos.Select(dto => dto.ToResponseDto());
+        }
     }
 }

@@ -73,7 +73,7 @@ namespace MovieAPI.Services
 
             if (!string.IsNullOrEmpty(request.Search))
             {
-                query.Where(m => m.Title.ToLower().Contains(request.Search.ToLower()));
+                query = query.Where(m => m.Title.ToLower().Contains(request.Search.ToLower()));
             }
 
             if (!string.IsNullOrEmpty(request.SortBy))

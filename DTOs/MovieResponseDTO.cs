@@ -1,5 +1,6 @@
 ﻿namespace MovieAPI.DTOs
 {
+    // class we use to send the movie info to frontend
     public class MovieResponseDTO
     {
         public int Id { get; set; }

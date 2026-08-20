@@ -1,5 +1,6 @@
 ﻿namespace MovieAPI.DTOs
 {
+    // class to handle the GetMovie url queries 
     public class GetMoviesQueryDTO
     {
         public string? Search {  get; set; }
