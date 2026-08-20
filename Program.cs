@@ -27,6 +27,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddValidatorsFromAssemblyContaining<GetMoviesQueryValidator>();
 builder.Services.AddFluentValidationAutoValidation();
 
+builder.Services.AddScoped<IMovieService, MovieService>();
+
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
