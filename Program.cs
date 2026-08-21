@@ -37,6 +37,8 @@ builder.Services.AddScoped<IMovieService, MovieService>();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+builder.Services.AddScoped<IFavoriteService, FavoriteService>();
+
 //JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
