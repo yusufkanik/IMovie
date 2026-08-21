@@ -40,6 +40,7 @@ namespace MovieAPI.Services
                 Email = request.Email,
                 PasswordHash = passwordHash,
                 PasswordSalt = passwordSalt,
+                Role = "User"
             };
 
             _dbContext.Users.Add(user);
@@ -50,6 +51,7 @@ namespace MovieAPI.Services
                 Token = CreateToken(user),
                 Username = user.UserName,
                 Email = user.Email,
+                Role = user.Role
             };
         }
 
@@ -70,7 +72,8 @@ namespace MovieAPI.Services
                 {
                     Email = user.Email,
                     Username = user.UserName,
-                    Token = CreateToken(user)
+                    Token = CreateToken(user),
+                    Role = user.Role
                 };
             }
 
@@ -101,6 +104,7 @@ namespace MovieAPI.Services
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.UserName),
                 new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role)
             };
 
             var secretKey = _configuration["JwtSettings:Secret"] 

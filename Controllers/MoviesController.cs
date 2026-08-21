@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,6 +27,7 @@ namespace MovieAPI.Controllers
 
         // Syncronize the movies from TMDB if exists in the database update, else just add to db
 
+        [Authorize(Roles = "Admin")]
         [HttpPost("sync-popular")]
         public async Task<IActionResult> SyncPopularMovies([FromQuery] int pageCount = 5)
         {
@@ -55,6 +57,7 @@ namespace MovieAPI.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost("sync/{tmdbId:int}")]
         public async Task<ActionResult<MovieResponseDTO>> SyncSingleMovie(int tmdbId)
         {
