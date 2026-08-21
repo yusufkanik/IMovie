@@ -149,7 +149,7 @@ namespace MovieAPI.Services
                 throw new InvalidOperationException($"TMDB Bağlantı Hatası: {tmdbResponse.Message}");
             }
 
-            // 2. TMDB bağlantısı başarılı ama veri boş geldiyse (Gerçekten film yoksa)
+            
             if (tmdbResponse.Data is null)
             {
                 throw new NotFoundException($"TMDB üzerinde {tmdbId} ID'li film bulunamadı.");
