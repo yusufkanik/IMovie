@@ -1,4 +1,4 @@
-﻿namespace MovieAPI.DTOs
+﻿namespace MovieAPI.DTOs.ResponseDTOs
 {
     // class we use to send the movie info to frontend
     public class MovieResponseDTO

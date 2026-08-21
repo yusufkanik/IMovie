@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace MovieAPI.DTOs;
+namespace MovieAPI.DTOs.TmdbDTOs;
 // wrapper class to handle the popular movies request to TMDB API (separate the page number and Movie results)
 public class TmdbPopularMoviesWrapper
 {

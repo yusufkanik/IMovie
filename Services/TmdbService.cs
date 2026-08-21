@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using static System.Net.WebRequestMethods;
-using MovieAPI.DTOs;
 using MovieAPI.Common;
+using MovieAPI.DTOs.TmdbDTOs;
 
 namespace MovieAPI.Services;
 
@@ -60,7 +60,7 @@ public class TmdbService
 
     public async Task<ServiceResponse<TmdbSearchResponse>> SearchMoviesAsync(string query, int page)
     {
-        var url = $"search/movie?query={Uri.EscapeDataString(query)}&page={page}&language=en-US";
+        var url = $"search/movie?api_key={_apiKey}&query={Uri.EscapeDataString(query)}&page={page}";
         var response = await _httpClient.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)
@@ -85,7 +85,7 @@ public class TmdbService
 
     public async Task<ServiceResponse<TmdbMovieDto>> GetMovieByTmdbIdAsync(int tmdbId)
     {
-        var url = $"movie/{tmdbId}?language=en-US";
+        var url = $"movie/{tmdbId}?api_key={_apiKey}&language=en-US";
         var response = await _httpClient.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)

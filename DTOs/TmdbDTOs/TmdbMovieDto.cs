@@ -1,5 +1,5 @@
 ﻿using System.Text.Json.Serialization;
-namespace MovieAPI.DTOs
+namespace MovieAPI.DTOs.TmdbDTOs
 
 {
     // class to receive the movie info from the TMDB API

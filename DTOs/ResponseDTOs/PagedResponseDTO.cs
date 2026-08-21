@@ -1,4 +1,4 @@
-﻿namespace MovieAPI.DTOs
+﻿namespace MovieAPI.DTOs.ResponseDTOs
 {
     // class to handle the paged responses and send them to frontend
     public class PagedResponseDTO<T>

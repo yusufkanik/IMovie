@@ -1,4 +1,5 @@
-﻿using MovieAPI.DTOs;
+﻿using MovieAPI.DTOs.ResponseDTOs;
+using MovieAPI.DTOs.TmdbDTOs;
 using MovieAPI.Models;
 using System.Collections;
 

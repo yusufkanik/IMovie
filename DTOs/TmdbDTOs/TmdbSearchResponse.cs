@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace MovieAPI.DTOs
+namespace MovieAPI.DTOs.TmdbDTOs
 {
     // class to receive the API response for search query reequests from Tmdb
     public class TmdbSearchResponse

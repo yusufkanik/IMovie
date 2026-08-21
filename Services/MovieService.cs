@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using MovieAPI.Data;
 using MovieAPI.DTOs;
+using MovieAPI.DTOs.ResponseDTOs;
 using MovieAPI.Exceptions;
 using MovieAPI.Extensions;
 
@@ -25,7 +26,7 @@ namespace MovieAPI.Services
 
             for (int page = 1; page <= PageCount; page++)
             {
-                var response = await _tmdbService.GetPopularMoviesAsync(PageCount);
+                var response = await _tmdbService.GetPopularMoviesAsync(page);
 
                 if (!response.IsSuccess)
                 {
@@ -41,6 +42,7 @@ namespace MovieAPI.Services
 
                     if (existing is null)
                     {
+                        movie.LastUpdated = DateTime.UtcNow;
                         _context.Movies.Add(movie);
                         totalAdded++;
                     }
@@ -110,5 +112,81 @@ namespace MovieAPI.Services
             }
             return movie.ToResponseDto();
         }
+
+        public async Task<PagedResponseDTO<MovieResponseDTO>> SearchTmdbMoviesAsync(string query, int page = 1)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                throw new BadRequestException("Arama kelimesi boş olamaz.");
+            }
+
+            var response = await _tmdbService.SearchMoviesAsync(query, page);
+
+            if (!response.IsSuccess || response.Data?.Results is null)
+            {
+                throw new InvalidOperationException(response.Message ?? "TMDB servisinden yanıt alınamadı.");
+            }
+
+            var dtos = response.Data.Results.ToResponseDTOList();
+            const int tmdbPageSize = 20;
+
+            return new PagedResponseDTO<MovieResponseDTO>(
+                dtos,
+                response.Data.Page,
+                tmdbPageSize,
+                response.Data.TotalResults
+            );
+
+        }
+
+        public async Task<MovieResponseDTO> SyncSingleMovieAsync(int tmdbId)
+        {
+            var existingMovie = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
+            var tmdbResponse = await _tmdbService.GetMovieByTmdbIdAsync(tmdbId);
+
+            if (!tmdbResponse.IsSuccess)
+            {
+                throw new InvalidOperationException($"TMDB Bağlantı Hatası: {tmdbResponse.Message}");
+            }
+
+            // 2. TMDB bağlantısı başarılı ama veri boş geldiyse (Gerçekten film yoksa)
+            if (tmdbResponse.Data is null)
+            {
+                throw new NotFoundException($"TMDB üzerinde {tmdbId} ID'li film bulunamadı.");
+            }
+
+            if (existingMovie != null)
+            {
+                if (tmdbResponse.IsSuccess && tmdbResponse.Data != null)
+                {
+                    var updatedData = tmdbResponse.Data.ToModel();
+
+                    existingMovie.Title = updatedData.Title;
+                    existingMovie.Overview = updatedData.Overview;
+                    existingMovie.PosterPath = updatedData.PosterPath;
+                    existingMovie.ReleaseDate = updatedData.ReleaseDate;
+                    existingMovie.VoteAverage = updatedData.VoteAverage;
+                    existingMovie.VoteCount = updatedData.VoteCount;
+                    existingMovie.LastUpdated = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+                }
+                return existingMovie.ToResponseDto();
+            }
+
+            
+
+            var dto = tmdbResponse.Data;
+
+            var movie = dto.ToModel();
+            movie.LastUpdated = DateTime.UtcNow;
+
+            _context.Movies.Add( movie );
+
+            await _context.SaveChangesAsync();
+
+            return movie.ToResponseDto();
+        }
+
     }
 }

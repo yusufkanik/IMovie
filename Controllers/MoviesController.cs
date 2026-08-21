@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 using MovieAPI.Data;
 using MovieAPI.DTOs;
+using MovieAPI.DTOs.ResponseDTOs;
 using MovieAPI.Exceptions;
 using MovieAPI.Extensions;
 using MovieAPI.Services;
@@ -44,6 +45,20 @@ namespace MovieAPI.Controllers
         public async Task<IActionResult> GetMovieById(int id) 
         {
             var result = await _movieService.GetMovieByIdAsync(id);
+            return Ok(result);
+        }
+
+        [HttpGet("tmdb/search")]
+        public async Task<ActionResult<PagedResponseDTO<MovieResponseDTO>>> SearchTmdb([FromQuery] string query, [FromQuery] int page = 1)
+        {
+            var result = await _movieService.SearchTmdbMoviesAsync(query, page);
+            return Ok(result);
+        }
+
+        [HttpPost("sync/{tmdbId:int}")]
+        public async Task<ActionResult<MovieResponseDTO>> SyncSingleMovie(int tmdbId)
+        {
+            var result = await _movieService.SyncSingleMovieAsync(tmdbId);
             return Ok(result);
         }
     }
