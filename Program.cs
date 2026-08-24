@@ -39,6 +39,8 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddScoped<IFavoriteService, FavoriteService>();
 
+builder.Services.AddScoped<ReviewService>();
+
 //JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

@@ -10,6 +10,7 @@ namespace MovieAPI.Data
         public DbSet<Movie> Movies => Set<Movie>();
         public DbSet<User> Users { get; set; }
         public DbSet<UserFavoriteMovie> UserFavoriteMovies { get; set; }
+        public DbSet<Review> Reviews { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -30,6 +31,14 @@ namespace MovieAPI.Data
                 .HasOne(ufm => ufm.Movie)
                 .WithMany()
                 .HasForeignKey(ufm => ufm.MovieId);
+
+            modelBuilder.Entity<Review>()
+            .ToTable("Reviews");
+
+            // Bir kullanıcı aynı filme sadece 1 yorum yapabilir
+            modelBuilder.Entity<Review>()
+                .HasIndex(r => new { r.UserId, r.MovieId })
+                .IsUnique();
         }
     }
 
