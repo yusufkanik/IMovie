@@ -11,6 +11,9 @@ namespace MovieAPI.Data
         public DbSet<User> Users { get; set; }
         public DbSet<UserFavoriteMovie> UserFavoriteMovies { get; set; }
         public DbSet<Review> Reviews { get; set; }
+        public DbSet<UserMovieStatus> UserMovieStatuses { get; set; }
+        public DbSet<CustomList> CustomLists { get; set; }
+        public DbSet<CustomListMovie> CustomListMovies { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -39,6 +42,12 @@ namespace MovieAPI.Data
             modelBuilder.Entity<Review>()
                 .HasIndex(r => new { r.UserId, r.MovieId })
                 .IsUnique();
+
+            modelBuilder.Entity<UserMovieStatus>()
+                .HasKey(ums => new { ums.UserId, ums.MovieId });
+
+            modelBuilder.Entity<CustomListMovie>()
+                .HasKey(clm => new { clm.CustomListId, clm.MovieId });
         }
     }
 

@@ -10,6 +10,7 @@ using MovieAPI.DTOs.ResponseDTOs;
 using MovieAPI.Exceptions;
 using MovieAPI.Extensions;
 using MovieAPI.Services;
+using System.Security.Claims;
 using System.Text;
 
 namespace MovieAPI.Controllers
@@ -19,10 +20,12 @@ namespace MovieAPI.Controllers
     public class MoviesController : ControllerBase
     {
         private readonly IMovieService _movieService;
+        private readonly UserMovieService _userMovieService;
 
-        public MoviesController(IMovieService movieService)
+        public MoviesController(IMovieService movieService, UserMovieService userMovieService)
         {
             _movieService = movieService;
+            _userMovieService = userMovieService;
         }
 
         // Syncronize the movies from TMDB if exists in the database update, else just add to db
@@ -44,7 +47,7 @@ namespace MovieAPI.Controllers
         }
 
         [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetMovieById(int id) 
+        public async Task<IActionResult> GetMovieById(int id)
         {
             var result = await _movieService.GetMovieByIdAsync(id);
             return Ok(result);
@@ -63,6 +66,18 @@ namespace MovieAPI.Controllers
         {
             var result = await _movieService.SyncSingleMovieAsync(tmdbId);
             return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPut("{movieId:int}/status")]
+
+        public async Task<IActionResult> SetWatchStatus(int movieId, [FromBody] UpdateWatchStatusDto dto)    // a function from UserMovieService will be used here
+        {
+            int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+            await _userMovieService.SetWatchStatusAsync(userId, movieId, dto.status);
+
+            return Ok(new {Message = "İzleme durumu güncellendi."});
         }
     }
 }
