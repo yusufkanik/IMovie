@@ -19,6 +19,10 @@ namespace MovieAPI.Extensions
                 ReleaseDate = dto.ReleaseDate,
                 VoteAverage = dto.VoteAverage,
                 VoteCount = dto.VoteCount,
+                MovieGenres = dto.GenreIds.Select(genreId => new MovieGenre
+                {
+                    GenreId = genreId
+                }).ToList()
             };
         }
 
@@ -41,7 +45,8 @@ namespace MovieAPI.Extensions
                 PosterUrl = string.IsNullOrEmpty(movie.PosterPath) ?
                     null : $"https://image.tmdb.org/t/p/w500{movie.PosterPath}",
                 Rating = movie.VoteAverage,
-                VoteCount = movie.VoteCount
+                VoteCount = movie.VoteCount,
+                Genres = movie.MovieGenres.Select(mg => mg.Genre.Name).ToList()
             };
         }
 

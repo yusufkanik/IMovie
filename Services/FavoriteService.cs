@@ -50,6 +50,9 @@ namespace MovieAPI.Services
         public async Task<List<MovieResponseDTO>> GetUserFavoritesAsync(int userId)
         {
             return await _context.UserFavoriteMovies
+                .Include(f => f.Movie)
+                .ThenInclude(m => m.MovieGenres)
+                .ThenInclude(mg => mg.Genre)
                 .Where(f => f.UserId == userId)
                 .Select(f => f.Movie.ToResponseDto())
                 .ToListAsync();

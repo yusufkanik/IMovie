@@ -13,5 +13,8 @@
         public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
         public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;
 
+
+        public ICollection<MovieGenre> MovieGenres { get; set; } = new List<MovieGenre>();
     }
 }
+

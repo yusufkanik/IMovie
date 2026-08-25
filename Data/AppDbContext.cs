@@ -14,6 +14,8 @@ namespace MovieAPI.Data
         public DbSet<UserMovieStatus> UserMovieStatuses { get; set; }
         public DbSet<CustomList> CustomLists { get; set; }
         public DbSet<CustomListMovie> CustomListMovies { get; set; }
+        public DbSet<Genre> Genres { get; set; }
+        public DbSet<MovieGenre> MovieGenres { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -48,6 +50,42 @@ namespace MovieAPI.Data
 
             modelBuilder.Entity<CustomListMovie>()
                 .HasKey(clm => new { clm.CustomListId, clm.MovieId });
+
+            modelBuilder.Entity<MovieGenre>()
+                .HasKey(mg => new { mg.MovieId, mg.GenreId });
+
+            modelBuilder.Entity<MovieGenre>()
+                .HasOne(mg => mg.Movie)
+                .WithMany(m => m.MovieGenres)
+                .HasForeignKey(mg => mg.MovieId);
+
+            modelBuilder.Entity<MovieGenre>()
+                .HasOne(mg => mg.Genre)
+                .WithMany(g => g.MovieGenres)
+                .HasForeignKey(mg => mg.GenreId);
+
+            // TMDB Sabit Tür Listesi (Seed Data)
+            modelBuilder.Entity<Genre>().HasData(
+                new Genre { Id = 28, Name = "Action" },
+                new Genre { Id = 12, Name = "Adventure" },
+                new Genre { Id = 16, Name = "Animation" },
+                new Genre { Id = 35, Name = "Comedy" },
+                new Genre { Id = 80, Name = "Crime" },
+                new Genre { Id = 99, Name = "Documentary" },
+                new Genre { Id = 18, Name = "Drama" },
+                new Genre { Id = 10751, Name = "Family" },
+                new Genre { Id = 14, Name = "Fantasy" },
+                new Genre { Id = 36, Name = "History" },
+                new Genre { Id = 27, Name = "Horror" },
+                new Genre { Id = 10402, Name = "Music" },
+                new Genre { Id = 9648, Name = "Mystery" },
+                new Genre { Id = 10749, Name = "Romance" },
+                new Genre { Id = 878, Name = "Science Fiction" },
+                new Genre { Id = 10770, Name = "TV Movie" },
+                new Genre { Id = 53, Name = "Thriller" },
+                new Genre { Id = 10752, Name = "War" },
+                new Genre { Id = 37, Name = "Western" }
+            );
         }
     }
 

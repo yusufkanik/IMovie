@@ -5,6 +5,7 @@ using MovieAPI.DTOs;
 using MovieAPI.DTOs.ResponseDTOs;
 using MovieAPI.Exceptions;
 using MovieAPI.Extensions;
+using MovieAPI.Models;
 
 namespace MovieAPI.Services
 {
@@ -38,10 +39,18 @@ namespace MovieAPI.Services
 
                 foreach (var movie in movies)
                 {
-                    var existing = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == movie.TmdbId);
+                    var existing = await _context.Movies
+                                                .Include(m => m.MovieGenres)
+                                                .FirstOrDefaultAsync(m => m.TmdbId == movie.TmdbId);
 
                     if (existing is null)
                     {
+                        var isAlreadyTracked = _context.Movies.Local.Any(m => m.TmdbId == movie.TmdbId);
+                        if (isAlreadyTracked)
+                        {
+                            continue; // Mükerrer kaydı atla
+                        }
+
                         movie.LastUpdated = DateTime.UtcNow;
                         _context.Movies.Add(movie);
                         totalAdded++;
@@ -55,6 +64,19 @@ namespace MovieAPI.Services
                         existing.VoteAverage = movie.VoteAverage;
                         existing.VoteCount = movie.VoteCount;
                         existing.LastUpdated = DateTime.UtcNow;
+
+                        _context.MovieGenres.RemoveRange(existing.MovieGenres);
+                        existing.MovieGenres.Clear();
+
+                        
+                        foreach (var mg in movie.MovieGenres)
+                        {
+                            existing.MovieGenres.Add(new MovieGenre
+                            {
+                                MovieId = existing.Id,
+                                GenreId = mg.GenreId
+                            });
+                        }
                         totalUpdated++;
                     }
                 }
@@ -71,7 +93,11 @@ namespace MovieAPI.Services
 
         public async Task<PagedResponseDTO<MovieResponseDTO>> GetMoviesAsync(GetMoviesQueryDTO request)
         {
-            var query = _context.Movies.AsNoTracking().AsQueryable();
+            var query = _context.Movies
+                                .Include(m => m.MovieGenres)
+                                .ThenInclude(mg => mg.Genre)
+                                .AsNoTracking()
+                                .AsQueryable();
 
             if (!string.IsNullOrEmpty(request.Search))
             {
@@ -89,6 +115,11 @@ namespace MovieAPI.Services
                 };
             }
 
+            if (request.GenreId.HasValue)
+            {
+                query = query.Where(m => m.MovieGenres.Any(mg => mg.GenreId == request.GenreId.Value));
+            }
+
             var totalRecords = await query.CountAsync();
 
             var movies = await query
@@ -104,7 +135,10 @@ namespace MovieAPI.Services
 
         public async Task<MovieResponseDTO> GetMovieByIdAsync (int id)
         {
-            var movie = await _context.Movies.FindAsync(id);
+            var movie = await _context.Movies
+                                      .Include(m => m.MovieGenres)
+                                      .ThenInclude(mg => mg.Genre)
+                                      .FirstOrDefaultAsync(m => m.Id == id);
 
             if (movie is null)
             {
@@ -141,7 +175,7 @@ namespace MovieAPI.Services
 
         public async Task<MovieResponseDTO> SyncSingleMovieAsync(int tmdbId)
         {
-            var existingMovie = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
+            var existingMovie = await _context.Movies.Include(m => m.MovieGenres).FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
             var tmdbResponse = await _tmdbService.GetMovieByTmdbIdAsync(tmdbId);
 
             if (!tmdbResponse.IsSuccess)
@@ -169,9 +203,22 @@ namespace MovieAPI.Services
                     existingMovie.VoteCount = updatedData.VoteCount;
                     existingMovie.LastUpdated = DateTime.UtcNow;
 
+                    _context.MovieGenres.RemoveRange(existingMovie.MovieGenres);
+                    existingMovie.MovieGenres.Clear();
+
+                    // MovieId'yi açıkça vererek yeni ilişkileri bağla
+                    foreach (var mg in updatedData.MovieGenres)
+                    {
+                        existingMovie.MovieGenres.Add(new MovieGenre
+                        {
+                            MovieId = existingMovie.Id,
+                            GenreId = mg.GenreId
+                        });
+                    }
+
                     await _context.SaveChangesAsync();
                 }
-                return existingMovie.ToResponseDto();
+                return await GetMovieByIdAsync(existingMovie.Id);
             }
 
             
@@ -185,7 +232,7 @@ namespace MovieAPI.Services
 
             await _context.SaveChangesAsync();
 
-            return movie.ToResponseDto();
+            return await GetMovieByIdAsync(movie.Id);
         }
 
     }

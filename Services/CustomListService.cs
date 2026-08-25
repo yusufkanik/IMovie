@@ -126,6 +126,9 @@ namespace MovieAPI.Services
             }
 
             var movies = await _context.CustomListMovies
+                               .Include(csm => csm.Movie)
+                               .ThenInclude(m => m.MovieGenres)
+                                   .ThenInclude(mg => mg.Genre)
                                        .Where(csm => csm.CustomListId == listId)
                                        .Select(csm => csm.Movie.ToResponseDto())
                                        .ToListAsync();

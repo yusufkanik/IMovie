@@ -15,6 +15,11 @@ namespace MovieAPI.Validators
             RuleFor(x => x.SortBy)
                 .Must(sortBy => string.IsNullOrEmpty(sortBy) || new[] { "vote", "votecount", "date" }.Contains(sortBy.ToLower()))
             .WithMessage("Sadece 'vote', 'votecount' veya 'date' kriterlerine göre sıralama yapabilirsiniz.");
+
+            RuleFor(x => x.GenreId)
+                .GreaterThan(0)
+                .When(x => x.GenreId.HasValue)
+                .WithMessage("Geçersiz tür (Genre) ID'si.");
         }
     }
 }

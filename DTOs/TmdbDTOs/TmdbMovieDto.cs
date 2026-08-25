@@ -25,5 +25,8 @@ namespace MovieAPI.DTOs.TmdbDTOs
 
         [JsonPropertyName("vote_count")]
         public int VoteCount { get; set; }
+
+        [JsonPropertyName("genre_ids")]
+        public List<int> GenreIds { get; set; } = new();
     }
 }

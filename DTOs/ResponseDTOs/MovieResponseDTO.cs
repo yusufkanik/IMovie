@@ -11,5 +11,7 @@
         public double Rating { get; set; }
         public int VoteCount { get; set; }
 
+        public List<string> Genres { get; set; } = new();
+
     }
 }
