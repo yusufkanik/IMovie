@@ -10,6 +10,10 @@ namespace MovieAPI.Extensions
         // convert the DTO object to Movie object
         public static Movie ToModel(this TmdbMovieDto dto)
         {
+            var targetGenreIds = dto.GenreIds.Count > 0
+                    ? dto.GenreIds
+                    : dto.Genres?.Select(g => g.Id).ToList() ?? new List<int>();
+
             return new Movie
             {
                 TmdbId = dto.Id,
@@ -19,7 +23,7 @@ namespace MovieAPI.Extensions
                 ReleaseDate = dto.ReleaseDate,
                 VoteAverage = dto.VoteAverage,
                 VoteCount = dto.VoteCount,
-                MovieGenres = dto.GenreIds.Select(genreId => new MovieGenre
+                MovieGenres = targetGenreIds.Select(genreId => new MovieGenre
                 {
                     GenreId = genreId
                 }).ToList()
