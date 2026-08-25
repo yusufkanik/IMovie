@@ -43,6 +43,8 @@ builder.Services.AddScoped<ReviewService>();
 
 builder.Services.AddScoped<UserMovieService>();
 
+builder.Services.AddScoped<CustomListService>();
+
 //JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

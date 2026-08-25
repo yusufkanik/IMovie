@@ -10,7 +10,7 @@
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public int UserId { get; set; }
-        public User User = null!;
+        public User User { get; set; } = null!;
 
         public ICollection<CustomListMovie> CustomListMovies { get; set; } = new List<CustomListMovie>(); 
 

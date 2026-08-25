@@ -73,7 +73,7 @@ namespace MovieAPI.Controllers
 
         public async Task<IActionResult> SetWatchStatus(int movieId, [FromBody] UpdateWatchStatusDto dto)    // a function from UserMovieService will be used here
         {
-            int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            int userId = User.GetUserId();
 
             await _userMovieService.SetWatchStatusAsync(userId, movieId, dto.status);
 

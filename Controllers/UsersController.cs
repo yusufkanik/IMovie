@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MovieAPI.Services;
+using MovieAPI.Extensions;
 using System.Security.Claims;
 
 namespace MovieAPI.Controllers
@@ -21,7 +22,7 @@ namespace MovieAPI.Controllers
         [HttpGet("me/stats")]
         public async Task<IActionResult> GetMyStats()
         {
-            int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            int userId = User.GetUserId();
             var result = await _service.GetUserStatsAsync(userId);
 
             return Ok(result);

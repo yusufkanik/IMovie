@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MovieAPI.DTOs.ReviewDTOs;
+using MovieAPI.Extensions;
 using MovieAPI.Services;
 using System.Security.Claims;
 
@@ -29,7 +30,7 @@ namespace MovieAPI.Controllers
         [Authorize]
         public async Task<IActionResult> AddReview(int movieId, [FromBody] CreateReviewDto dto)
         {
-            int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            int userId = User.GetUserId();
 
             await _reviewService.AddReviewAsync(userId, movieId, dto);
 
@@ -41,7 +42,7 @@ namespace MovieAPI.Controllers
 
         public async Task<IActionResult> UpdateReview(int movieId, [FromBody] CreateReviewDto dto)
         {
-            int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            int userId = User.GetUserId();
 
             await _reviewService.UpdateMovieReviewAsync(userId, movieId, dto);
 
@@ -53,7 +54,7 @@ namespace MovieAPI.Controllers
 
         public async Task<IActionResult> DeleteReview (int movieId)
         {
-            int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            int userId = User.GetUserId();
 
             await _reviewService.DeleteMovieReviewAsync(userId, movieId);
 

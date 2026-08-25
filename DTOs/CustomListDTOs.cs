@@ -27,6 +27,7 @@ namespace MovieAPI.DTOs
         bool IsPublic,
         string OwnerEmail,
         List<MovieResponseDTO> Movies,
-        DateTime CreatedAt
+        DateTime CreatedAt,
+        int movieCount
     );
 }
