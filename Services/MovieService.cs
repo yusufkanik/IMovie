@@ -99,25 +99,55 @@ namespace MovieAPI.Services
                                 .AsNoTracking()
                                 .AsQueryable();
 
-            if (!string.IsNullOrEmpty(request.Search))
+            if (!string.IsNullOrEmpty(request.SearchTerm))
             {
-                query = query.Where(m => m.Title.ToLower().Contains(request.Search.ToLower()));
+                query = query.Where(m => m.Title.ToLower().Contains(request.SearchTerm.ToLower()));
             }
 
             if (!string.IsNullOrEmpty(request.SortBy))
             {
-                query = request.SortBy.ToLower() switch
+                query = request.SortBy?.ToLower() switch
                 {
-                    "vote" => query.OrderByDescending(m => m.VoteAverage),
-                    "date" => query.OrderByDescending(m => string.IsNullOrEmpty(m.ReleaseDate) ? "0000-00-00" : m.ReleaseDate),
-                    "votecount" => query.OrderByDescending(m => m.VoteCount),
+                    "vote" => request.SortOrder == "asc" ? query.OrderBy(m => m.VoteAverage) : query.OrderByDescending(m => m.VoteAverage),
+                    "votecount" => request.SortOrder == "asc" ? query.OrderBy(m => m.VoteCount) : query.OrderByDescending(m => m.VoteCount),
+                    "date" => request.SortOrder == "asc" ? query.OrderBy(m => m.ReleaseDate) : query.OrderByDescending(m => m.ReleaseDate),
                     _ => query.OrderByDescending(m => m.Id)
                 };
             }
 
-            if (request.GenreId.HasValue)
+            if (request.MinYear.HasValue)
             {
-                query = query.Where(m => m.MovieGenres.Any(mg => mg.GenreId == request.GenreId.Value));
+                var minYearStr = request.MinYear.Value.ToString();
+                query = query.Where(m => m.ReleaseDate != null && string.Compare(m.ReleaseDate.Substring(0, 4), minYearStr) >= 0);
+            }
+
+            if (request.MaxYear.HasValue)
+            {
+                var maxYearStr = request.MaxYear.Value.ToString();
+                query = query.Where(m => m.ReleaseDate != null && string.Compare(m.ReleaseDate.Substring(0, 4), maxYearStr) <= 0);
+            }
+
+
+            if (request.MinRating.HasValue)
+            {
+                query = query.Where(m => m.VoteAverage >= request.MinRating.Value);
+            }
+            if (request.MaxRating.HasValue)
+            {
+                query = query.Where(m => m.VoteAverage <= request.MaxRating.Value);
+            }
+            if (request.MinVoteCount.HasValue)
+            {
+                query = query.Where(m => m.VoteCount >= request.MinVoteCount.Value);
+            }
+
+            if (request.GenreIds != null && request.GenreIds.Count > 0)
+            {
+                foreach (var genreId in request.GenreIds)
+                {
+                    var id = genreId;
+                    query = query.Where(m => m.MovieGenres.Any(mg => mg.GenreId == id));
+                }
             }
 
             var totalRecords = await query.CountAsync();
