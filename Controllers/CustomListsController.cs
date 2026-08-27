@@ -31,6 +31,26 @@ namespace MovieAPI.Controllers
             return CreatedAtAction(nameof(GetListById), new { listId }, new { id = listId, message = "Liste başarıyla oluşturuldu." });
         }
 
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateList(int id, [FromBody] UpdateCustomListDto dto)
+        {
+            var userId = User.GetUserId();
+            await _listService.UpdateListAsync(userId, id, dto);
+
+            return NoContent();
+        }
+
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteList(int id)
+        {
+            int userId = User.GetUserId();
+            await _listService.DeleteListAsync(userId, id);
+            return NoContent();
+        }
+
+
         [HttpPost("{listId}/movies")]
         [Authorize]
 

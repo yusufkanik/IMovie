@@ -9,6 +9,12 @@ namespace MovieAPI.DTOs
                 bool IsPublic = true
        );
 
+    public record UpdateCustomListDto(
+                string Title,
+                string? Description,
+                bool IsPublic
+       );
+
     public record AddMovieToListDto(int movieId);
 
     public record CustomListSummaryDto(

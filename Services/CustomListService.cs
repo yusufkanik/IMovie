@@ -33,6 +33,45 @@ namespace MovieAPI.Services
             return customList.Id;
         }
 
+        public async Task UpdateListAsync(int userId, int listId, UpdateCustomListDto dto)
+        {
+            var list = await _context.CustomLists.FirstOrDefaultAsync(l => l.Id == listId);
+
+            if (list == null)
+            {
+                throw new NotFoundException("Liste bulunamadı.");
+            }
+
+            if (userId != list.UserId)
+            {
+                throw new UnauthorizedAccessException("Bu liste üzerinde yetkiniz yok.");
+            }
+
+            list.Title = dto.Title;
+            list.Description = dto.Description;
+            list.IsPublic = dto.IsPublic;
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteListAsync(int userId, int listId)
+        {
+            var list = await _context.CustomLists.FirstOrDefaultAsync(l => l.Id == listId);
+
+            if (list == null)
+            {
+                throw new NotFoundException("Liste bulunamadı.");
+            }
+
+            if (userId != list.UserId)
+            {
+                throw new UnauthorizedAccessException("Bu liste üzerinde yetkiniz yok.");
+            }
+
+            _context.CustomLists.Remove(list);
+            await _context.SaveChangesAsync();
+        }
+
         public async Task AddMovieToListAsync(int userId, int listId, int movieId)
         { 
             var list = await _context.CustomLists.FindAsync(listId);
