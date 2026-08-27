@@ -50,7 +50,9 @@ namespace MovieAPI.Extensions
                     null : $"https://image.tmdb.org/t/p/w500{movie.PosterPath}",
                 Rating = movie.VoteAverage,
                 VoteCount = movie.VoteCount,
-                Genres = movie.MovieGenres.Select(mg => mg.Genre.Name).ToList()
+                Genres = movie.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
+                LocalVoteAverage = movie.LocalVoteAverage,
+                LocalVoteCount = movie.LocalVoteCount,
             };
         }
 
@@ -67,9 +69,13 @@ namespace MovieAPI.Extensions
                 TmdbId = dto.Id,
                 Title = dto.Title ?? string.Empty,
                 Overview = dto.Overview ?? string.Empty,
-                PosterUrl = dto.PosterPath,
+                PosterUrl = string.IsNullOrEmpty(dto.PosterPath)
+                    ? null
+                    : $"https://image.tmdb.org/t/p/w500{dto.PosterPath}",
                 Rating = dto.VoteAverage,
-                VoteCount = dto.VoteCount
+                VoteCount = dto.VoteCount,
+                LocalVoteAverage = 0.0,
+                LocalVoteCount = 0
             };
         }
 

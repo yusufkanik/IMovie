@@ -16,6 +16,24 @@ namespace MovieAPI.Services
             _context = context;
         }
 
+        private async Task UpdateMovieLocalRatingAsync(int movieId)
+        {
+            var movie = await _context.Movies.FirstOrDefaultAsync(m => m.Id == movieId);
+            if (movie == null) { return; }
+
+            var reviews = await _context.Reviews.Where(r => r.MovieId == movieId).ToListAsync();
+
+            int ratingCount = reviews.Count;
+            double rating = reviews.Any()
+                                ? Math.Round(reviews.Average(r => r.Rating), 1)
+        :                       0.0;
+
+            movie.LocalVoteAverage = rating;
+            movie.LocalVoteCount = ratingCount;
+
+            await _context.SaveChangesAsync();
+        }
+
         public async Task AddReviewAsync(int userId, int movieId, CreateReviewDto review)
         {
             var movieExists = await _context.Movies.AnyAsync(m => m.Id == movieId);
@@ -44,6 +62,8 @@ namespace MovieAPI.Services
             _context.Reviews.Add(new_review);
 
             await _context.SaveChangesAsync();
+
+            await UpdateMovieLocalRatingAsync(movieId);
         }
 
         public async Task<List<ReviewResponseDto>> GetMovieReviewsAsync(int movieId)
@@ -81,6 +101,8 @@ namespace MovieAPI.Services
             review.Rating = dto.Rating;
 
             await _context.SaveChangesAsync();
+
+            await UpdateMovieLocalRatingAsync(movieId);
         }
 
         public async Task DeleteMovieReviewAsync(int userId, int movieId)
@@ -101,6 +123,8 @@ namespace MovieAPI.Services
 
             _context.Reviews.Remove(review);
             await _context.SaveChangesAsync();
+
+            await UpdateMovieLocalRatingAsync(movieId);
         }
     }
 }
