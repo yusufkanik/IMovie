@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using MovieAPI.Services;
 using MovieAPI.Extensions;
+using MovieAPI.Models;
+using MovieAPI.Services;
 using System.Security.Claims;
 
 namespace MovieAPI.Controllers
@@ -27,5 +28,16 @@ namespace MovieAPI.Controllers
 
             return Ok(result);
         }
+
+        [HttpGet("me/movies/{status}")]
+        public async Task<IActionResult> GetMyMoviesByStatus(WatchStatus status)
+        {
+            int userId = User.GetUserId();
+            var result = await _service.GetUserMoviesByStatusAsync(userId, status);
+
+            return Ok(result);
+        }
     }
+
+
 }

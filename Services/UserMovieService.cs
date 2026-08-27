@@ -3,6 +3,7 @@ using MovieAPI.Data;
 using MovieAPI.Exceptions;
 using MovieAPI.Models;
 using MovieAPI.DTOs.ResponseDTOs;
+using MovieAPI.Extensions;
 
 namespace MovieAPI.Services
 {
@@ -66,6 +67,18 @@ namespace MovieAPI.Services
                 totalDropped,
                 Math.Round(averageRatingGiven, 1) 
             );
+        }
+
+        public async Task<List<MovieResponseDTO>> GetUserMoviesByStatusAsync(int userId, WatchStatus status)
+        {
+           return await _context.UserMovieStatuses
+                            .Include(ums => ums.Movie)
+                            .ThenInclude(m => m.MovieGenres)
+                            .ThenInclude(mg => mg.Genre)
+                            .Where(ums => ums.UserId == userId && ums.status == status)
+                            .AsNoTracking()
+                            .Select(ums => ums.Movie.ToResponseDto())
+                            .ToListAsync();
         }
     }
 }
