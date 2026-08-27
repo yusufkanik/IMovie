@@ -5,6 +5,8 @@
     int Rating,
     string Comment,
     string UserEmail,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    int LikeCount,
+    int DislikeCount
     );
 }

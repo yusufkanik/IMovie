@@ -16,6 +16,7 @@ namespace MovieAPI.Data
         public DbSet<CustomListMovie> CustomListMovies { get; set; }
         public DbSet<Genre> Genres { get; set; }
         public DbSet<MovieGenre> MovieGenres { get; set; }
+        public DbSet<ReviewReaction> ReviewReactions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -86,6 +87,15 @@ namespace MovieAPI.Data
                 new Genre { Id = 10752, Name = "War" },
                 new Genre { Id = 37, Name = "Western" }
             );
+
+            modelBuilder.Entity<ReviewReaction>()
+                .HasKey(r => new { r.UserId, r.ReviewId });
+
+            modelBuilder.Entity<ReviewReaction>()
+                .HasOne(r => r.Review)
+                .WithMany(rev => rev.Reactions)
+                .HasForeignKey(r => r.ReviewId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 

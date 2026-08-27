@@ -60,5 +60,23 @@ namespace MovieAPI.Controllers
 
             return Ok(new { Message = "Yorum başarıyla silindi." });
         }
+
+        [HttpPost("{reviewId}/like")]
+        [Authorize]
+        public async Task<IActionResult> LikeReview(int reviewId)
+        {
+            int userId = User.GetUserId();
+            await _reviewService.ToggleReactionAsync(userId, reviewId, isLike: true);
+            return NoContent();
+        }
+
+        [HttpPost("{reviewId}/dislike")]
+        [Authorize]
+        public async Task<IActionResult> DislikeReview(int reviewId)
+        {
+            int userId = User.GetUserId();
+            await _reviewService.ToggleReactionAsync(userId, reviewId, isLike: false);
+            return NoContent();
+        }
     }
 }

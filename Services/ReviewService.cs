@@ -77,7 +77,9 @@ namespace MovieAPI.Services
                     r.Rating,
                     r.Comment,
                     r.User.Email,
-                    r.CreatedAt
+                    r.CreatedAt,
+                    r.LikeCount,
+                    r.DislikeCount
                 )).ToListAsync();
         }
 
@@ -125,6 +127,54 @@ namespace MovieAPI.Services
             await _context.SaveChangesAsync();
 
             await UpdateMovieLocalRatingAsync(movieId);
+        }
+
+
+        public async Task ToggleReactionAsync(int userId, int reviewId, bool isLike)
+        {
+            var review = await _context.Reviews.FirstOrDefaultAsync(r => r.Id == reviewId);
+            if (review is null) throw new NotFoundException("Yorum bulunamadı.");
+
+            var existingReaction = await _context.ReviewReactions.FirstOrDefaultAsync(rr => rr.UserId == userId && rr.ReviewId == reviewId);
+
+            if (existingReaction is null)
+            {
+                var reaction = new ReviewReaction
+                {
+                    UserId = userId,
+                    ReviewId = reviewId,
+                    IsLike = isLike
+                };
+
+                if (isLike) review.LikeCount++;
+                else review.DislikeCount++;
+
+                _context.ReviewReactions.Add(reaction);
+            }
+
+
+            else if (existingReaction.IsLike == isLike)
+            {
+                if (isLike) review.LikeCount--;
+                else review.DislikeCount--;
+
+                _context.ReviewReactions.Remove(existingReaction);
+            }
+
+            else if (isLike)
+            {
+                review.LikeCount++;
+                review.DislikeCount--;
+                existingReaction.IsLike = isLike;
+            }
+            else
+            {
+                review.LikeCount--;
+                review.DislikeCount++;
+                existingReaction.IsLike = isLike;
+            }
+
+            await _context.SaveChangesAsync();
         }
     }
 }
