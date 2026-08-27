@@ -17,6 +17,9 @@ namespace MovieAPI.Data
         public DbSet<Genre> Genres { get; set; }
         public DbSet<MovieGenre> MovieGenres { get; set; }
         public DbSet<ReviewReaction> ReviewReactions { get; set; }
+        public DbSet<Person> People { get; set; }
+        public DbSet<MovieCast> MovieCasts { get; set; }
+        public DbSet<MovieDirector> MovieDirectors { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -96,6 +99,34 @@ namespace MovieAPI.Data
                 .WithMany(rev => rev.Reactions)
                 .HasForeignKey(r => r.ReviewId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+
+            modelBuilder.Entity<MovieCast>()
+                .HasKey(mc => new { mc.MovieId, mc.PersonId });
+
+            modelBuilder.Entity<MovieCast>()
+                .HasOne(mc => mc.Movie)
+                .WithMany(m => m.MovieCasts)
+                .HasForeignKey(mc => mc.MovieId);
+
+            modelBuilder.Entity<MovieCast>()
+                .HasOne(mc => mc.Person)
+                .WithMany(p => p.MovieCasts)
+                .HasForeignKey(mc => mc.PersonId);
+
+            // MovieDirector - Composite Primary Key
+            modelBuilder.Entity<MovieDirector>()
+                .HasKey(md => new { md.MovieId, md.PersonId });
+
+            modelBuilder.Entity<MovieDirector>()
+                .HasOne(md => md.Movie)
+                .WithMany(m => m.MovieDirectors)
+                .HasForeignKey(md => md.MovieId);
+
+            modelBuilder.Entity<MovieDirector>()
+                .HasOne(md => md.Person)
+                .WithMany(p => p.MovieDirectors)
+                .HasForeignKey(md => md.PersonId);
         }
     }
 

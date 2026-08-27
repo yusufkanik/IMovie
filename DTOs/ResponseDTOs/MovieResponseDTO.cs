@@ -17,4 +17,27 @@
         public List<string> Genres { get; set; } = new();
 
     }
+    public class MovieDetailsDto : MovieResponseDTO
+    {
+        public int Runtime { get; set; }
+        public long Budget { get; set; }
+        public long Revenue { get; set; }
+        public string? TrailerUrl { get; set; }
+
+        public List<PersonDto> Directors { get; set; } = new();
+        public List<CastDto> Cast { get; set; } = new();
+    }
+
+    public record PersonDto(
+        int PersonId,
+        string Name,
+        string? ProfilePath
+    );
+
+    public record CastDto(
+        int PersonId,
+        string Name,
+        string Character,
+        string? ProfilePath
+    );
 }
