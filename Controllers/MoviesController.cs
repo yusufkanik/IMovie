@@ -79,5 +79,21 @@ namespace MovieAPI.Controllers
 
             return Ok(new {Message = "İzleme durumu güncellendi."});
         }
+
+        [HttpGet("{id:int}/similar")]
+        public async Task<IActionResult> GetSimilarMovies(int id)
+        {
+            var result = await _movieService.GetSimilarMoviesAsync(id);
+            return Ok(result);
+        }
+
+        [HttpGet("recommendations")]
+        [Authorize]
+        public async Task<IActionResult> GetPersonalizedRecommendations()
+        {
+            var userId = User.GetUserId();
+            var result = await _movieService.GetPersonalizedRecommendationsAsync(userId);
+            return Ok(result);
+        }
     }
 }

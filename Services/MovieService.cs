@@ -265,5 +265,69 @@ namespace MovieAPI.Services
             return await GetMovieByIdAsync(movie.Id);
         }
 
+        public async Task<List<MovieResponseDTO>> GetSimilarMoviesAsync(int movieId)
+        {
+            var targetGenreIds = await _context.MovieGenres
+                .Where(mg => mg.MovieId == movieId)
+                .Select(mg => mg.GenreId)
+                .ToListAsync();
+
+            if (!targetGenreIds.Any()) return new List<MovieResponseDTO>();
+
+            var similarMovies = await _context.Movies
+                .Include(m => m.MovieGenres)
+                .ThenInclude(mg => mg.Genre)
+                .AsNoTracking()
+                .Where(m => m.Id != movieId)
+                .Where(m => m.MovieGenres.Any(mg => targetGenreIds.Contains(mg.GenreId)))
+                .OrderByDescending(m => m.MovieGenres.Count(mg => targetGenreIds.Contains(mg.GenreId)))
+                .ThenByDescending(m => m.VoteAverage)
+                .Take(10)
+                .ToListAsync();
+
+            return similarMovies.Select(m => m.ToResponseDto()).ToList();
+        }
+
+        public async Task<List<MovieResponseDTO>> GetPersonalizedRecommendationsAsync(int userId)
+        {
+            var favoriteMovieIds = await _context.UserFavoriteMovies
+                .Where(usm => usm.UserId == userId)
+                .Select(usm => usm.MovieId)
+                .ToListAsync();
+
+            if (!favoriteMovieIds.Any())
+            {
+                return await _context.Movies
+                    .Include(m => m.MovieGenres)
+                    .ThenInclude(mg => mg.Genre)
+                    .AsNoTracking()
+                    .Where(m => m.VoteCount > 1000)
+                    .OrderByDescending(m => m.VoteAverage)
+                    .Take(10)
+                    .Select(m => m.ToResponseDto())
+                    .ToListAsync();
+
+            }
+
+            var favoriteGenreIds = await _context.MovieGenres
+                .Where(mg => favoriteMovieIds.Contains(mg.MovieId))
+                .GroupBy(mg => mg.GenreId)
+                .OrderByDescending(g => g.Count())
+                .Take(3)
+                .Select(g => g.Key)
+                .ToListAsync();
+
+            var recommendations = await _context.Movies
+                .Include(m => m.MovieGenres)
+                .ThenInclude(mg => mg.Genre)
+                .AsNoTracking()
+                .Where(m => !favoriteMovieIds.Contains(m.Id))
+                .Where(m => m.MovieGenres.Any(mg => favoriteGenreIds.Contains(mg.GenreId)))
+                .OrderByDescending(m => m.VoteAverage)
+                .Take(10)
+                .ToListAsync();
+
+            return recommendations.Select(m => m.ToResponseDto()).ToList();
+        }
     }
 }

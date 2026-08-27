@@ -13,6 +13,12 @@ namespace MovieAPI.Services
                                                                                                     // when user queries, this just shows the results from TMDB nothin else.
         Task<MovieResponseDTO> SyncSingleMovieAsync(int tmdbId); // this one adds or update the movie that frontend wants details about
                                                                  // after user sees the query result from above function, they click on one of the movies
-                                                                 // that movie is passed to this function to be updated or added to database
-    }
+                                 
+                                                                    // that movie is passed to this function to be updated or added to database
+        Task<List<MovieResponseDTO>> GetSimilarMoviesAsync(int movieId);  // recommendations based on the movie that is viewed
+        Task<List<MovieResponseDTO>> GetPersonalizedRecommendationsAsync(int userId);    // personal recommendations based on the favorites
+
+
+     }
+
 }
