@@ -163,19 +163,21 @@ namespace MovieAPI.Services
 
         }
 
-        public async Task<MovieResponseDTO> GetMovieByIdAsync (int id)
+        public async Task<MovieDetailsDto> GetMovieByIdAsync (int id)
         {
             var movie = await _context.Movies
-                                      .Include(m => m.MovieGenres)
-                                      .ThenInclude(mg => mg.Genre)
-                                      .FirstOrDefaultAsync(m => m.Id == id);
+                                        .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
+                                        .Include(m => m.MovieDirectors).ThenInclude(md => md.Person)
+                                        .Include(m => m.MovieCasts).ThenInclude(mc => mc.Person)
+                                        .FirstOrDefaultAsync(m => m.Id == id);
 
             if (movie is null)
             {
                 throw new NotFoundException($"{id} ID'li film veritabanında bulunamadı.");
             }
-            return movie.ToResponseDto();
+            return movie.ToDetailsDto();
         }
+
 
         public async Task<PagedResponseDTO<MovieResponseDTO>> SearchTmdbMoviesAsync(string query, int page = 1)
         {
@@ -191,7 +193,22 @@ namespace MovieAPI.Services
                 throw new InvalidOperationException(response.Message ?? "TMDB servisinden yanıt alınamadı.");
             }
 
-            var dtos = response.Data.Results.ToResponseDTOList();
+            var tmdbResults = response.Data.Results;
+            var tmdbIds = tmdbResults.Select(r => r.Id).ToList();
+
+            
+            var existingMoviesLookup = await _context.Movies
+                .Where(m => tmdbIds.Contains(m.TmdbId))
+                .ToDictionaryAsync(m => m.TmdbId);
+
+           
+            var genreLookup = await _context.Genres
+                .ToDictionaryAsync(g => g.Id, g => g.Name);
+
+            var dtos = tmdbResults
+                .Select(dto => dto.ToResponseDto(existingMoviesLookup, genreLookup))
+                .ToList();
+
             const int tmdbPageSize = 20;
 
             return new PagedResponseDTO<MovieResponseDTO>(
@@ -200,69 +217,105 @@ namespace MovieAPI.Services
                 tmdbPageSize,
                 response.Data.TotalResults
             );
-
         }
 
-        public async Task<MovieResponseDTO> SyncSingleMovieAsync(int tmdbId)
+        public async Task<MovieDetailsDto> SyncSingleMovieAsync(int tmdbId)
         {
-            var existingMovie = await _context.Movies.Include(m => m.MovieGenres).FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
             var tmdbResponse = await _tmdbService.GetMovieByTmdbIdAsync(tmdbId);
+            if (!tmdbResponse.IsSuccess || tmdbResponse.Data is null)
+                throw new InvalidOperationException($"TMDB Hatası: {tmdbResponse.Message}");
 
-            if (!tmdbResponse.IsSuccess)
-            {
-                throw new InvalidOperationException($"TMDB Bağlantı Hatası: {tmdbResponse.Message}");
-            }
+            var data = tmdbResponse.Data;
+            var movie = await _context.Movies
+                .Include(m => m.MovieGenres)
+                .Include(m => m.MovieDirectors)
+                .Include(m => m.MovieCasts)
+                .FirstOrDefaultAsync(m => m.TmdbId == tmdbId) ?? new Movie { TmdbId = tmdbId };
 
-            
-            if (tmdbResponse.Data is null)
-            {
-                throw new NotFoundException($"TMDB üzerinde {tmdbId} ID'li film bulunamadı.");
-            }
-
-            if (existingMovie != null)
-            {
-                if (tmdbResponse.IsSuccess && tmdbResponse.Data != null)
-                {
-                    var updatedData = tmdbResponse.Data.ToModel();
-
-                    existingMovie.Title = updatedData.Title;
-                    existingMovie.Overview = updatedData.Overview;
-                    existingMovie.PosterPath = updatedData.PosterPath;
-                    existingMovie.ReleaseDate = updatedData.ReleaseDate;
-                    existingMovie.VoteAverage = updatedData.VoteAverage;
-                    existingMovie.VoteCount = updatedData.VoteCount;
-                    existingMovie.LastUpdated = DateTime.UtcNow;
-
-                    _context.MovieGenres.RemoveRange(existingMovie.MovieGenres);
-                    existingMovie.MovieGenres.Clear();
-
-                    // MovieId'yi açıkça vererek yeni ilişkileri bağla
-                    foreach (var mg in updatedData.MovieGenres)
-                    {
-                        existingMovie.MovieGenres.Add(new MovieGenre
-                        {
-                            MovieId = existingMovie.Id,
-                            GenreId = mg.GenreId
-                        });
-                    }
-
-                    await _context.SaveChangesAsync();
-                }
-                return await GetMovieByIdAsync(existingMovie.Id);
-            }
-
-            
-
-            var dto = tmdbResponse.Data;
-
-            var movie = dto.ToModel();
+            // 1. Temel + Detay Verileri (Poster & TMDB Oy Değerleri Dahil)
+            movie.Title = data.Title;
+            movie.Overview = data.Overview;
+            movie.PosterPath = data.PosterPath;
+            movie.ReleaseDate = data.ReleaseDate;
+            movie.VoteAverage = data.VoteAverage;
+            movie.VoteCount = data.VoteCount;
+            movie.Runtime = data.Runtime;
+            movie.Budget = data.Budget;
+            movie.Revenue = data.Revenue;
             movie.LastUpdated = DateTime.UtcNow;
 
-            _context.Movies.Add( movie );
+            // LocalVoteAverage ve LocalVoteCount alanlarına dokunmuyoruz (mevcut DB değerleri korunur)
+
+            // 2. Fragman (YouTube)
+            var trailer = data.Videos?.Results?.FirstOrDefault(v => v.Site == "YouTube" && v.Type == "Trailer");
+            movie.TrailerUrl = trailer != null ? $"https://www.youtube.com/watch?v={trailer.Key}" : null;
+
+            // 3. Türler (Genres) Güncellemesi
+            _context.MovieGenres.RemoveRange(movie.MovieGenres);
+            movie.MovieGenres.Clear();
+
+            if (data.Genres != null && data.Genres.Any())
+            {
+                var tmdbGenreIds = data.Genres.Select(g => g.Id).ToList();
+
+                // Veritabanımızdaki Genre kayıtlarını TMDB Genre ID'sine (veya Id'ye) göre buluyoruz
+                var localGenres = await _context.Genres
+                    .Where(g => tmdbGenreIds.Contains(g.Id))
+                    .ToListAsync();
+
+                foreach (var genre in localGenres)
+                {
+                    movie.MovieGenres.Add(new MovieGenre
+                    {
+                        Movie = movie,
+                        GenreId = genre.Id
+                    });
+                }
+            }
+
+            // 4. Yönetmenler
+            _context.MovieDirectors.RemoveRange(movie.MovieDirectors);
+            movie.MovieDirectors.Clear();
+            var directors = data.Credits?.Crew?.Where(c => c.Job == "Director").ToList() ?? new();
+            foreach (var dir in directors)
+            {
+                var person = await GetOrCreatePersonAsync(dir.Id, dir.Name, dir.ProfilePath);
+                movie.MovieDirectors.Add(new MovieDirector { Person = person });
+            }
+
+            // 5. Oyuncular (İlk 10)
+            _context.MovieCasts.RemoveRange(movie.MovieCasts);
+            movie.MovieCasts.Clear();
+            var castList = data.Credits?.Cast?.Take(10).ToList() ?? new();
+            for (int i = 0; i < castList.Count; i++)
+            {
+                var actor = castList[i];
+                var person = await GetOrCreatePersonAsync(actor.Id, actor.Name, actor.ProfilePath);
+                movie.MovieCasts.Add(new MovieCast { Person = person, CharacterName = actor.Character, DisplayOrder = i + 1 });
+            }
+
+            if (movie.Id == 0) _context.Movies.Add(movie);
 
             await _context.SaveChangesAsync();
-
             return await GetMovieByIdAsync(movie.Id);
+        }
+
+        private async Task<Person> GetOrCreatePersonAsync(int tmdbPersonId, string name, string? profilePath)
+        {
+            var person = await _context.People.FirstOrDefaultAsync(p => p.Id == tmdbPersonId)
+                         ?? _context.People.Local.FirstOrDefault(p => p.Id == tmdbPersonId);
+
+            if (person is null)
+            {
+                person = new Person { Id = tmdbPersonId, Name = name, ProfilePath = profilePath };
+                _context.People.Add(person);
+            }
+            else if (!string.IsNullOrEmpty(profilePath) && string.IsNullOrEmpty(person.ProfilePath))
+            {
+                person.ProfilePath = profilePath; // Daha önce profilePath null kaydedildiyse güncelle
+            }
+
+            return person;
         }
 
         public async Task<List<MovieResponseDTO>> GetSimilarMoviesAsync(int movieId)

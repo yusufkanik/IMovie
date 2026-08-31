@@ -61,11 +61,22 @@ namespace MovieAPI.Extensions
             return movies.Select(m => ToResponseDto(m)).ToList();
         }
 
-        public static MovieResponseDTO ToResponseDto(this TmdbMovieDto dto)
+        public static MovieResponseDTO ToResponseDto(
+                this TmdbMovieDto dto,
+                Dictionary<int, Movie>? existingMoviesLookup = null,
+                Dictionary<int, string>? genreLookup = null)
         {
+
+            Movie? localMovie = null;
+            if (existingMoviesLookup != null && existingMoviesLookup.TryGetValue(dto.Id, out var foundMovie))
+            {
+                localMovie = foundMovie;
+            }
+
             return new MovieResponseDTO
             {
-                Id = 0, // DB kaydı henüz olmadığı için
+
+                Id = localMovie?.Id ?? 0,
                 TmdbId = dto.Id,
                 Title = dto.Title ?? string.Empty,
                 Overview = dto.Overview ?? string.Empty,
@@ -74,14 +85,71 @@ namespace MovieAPI.Extensions
                     : $"https://image.tmdb.org/t/p/w500{dto.PosterPath}",
                 Rating = dto.VoteAverage,
                 VoteCount = dto.VoteCount,
-                LocalVoteAverage = 0.0,
-                LocalVoteCount = 0
+
+
+                LocalVoteAverage = localMovie?.LocalVoteAverage ?? 0.0,
+                LocalVoteCount = localMovie?.LocalVoteCount ?? 0,
+
+
+                Genres = dto.GenreIds != null && genreLookup != null
+                    ? dto.GenreIds
+                        .Where(id => genreLookup.ContainsKey(id))
+                        .Select(id => genreLookup[id])
+                        .ToList()
+                    : new List<string>()
             };
         }
 
         public static IEnumerable<MovieResponseDTO> ToResponseDTOList(this IEnumerable<TmdbMovieDto> dtos)
         {
             return dtos.Select(dto => dto.ToResponseDto());
+        }
+
+        public static MovieDetailsDto ToDetailsDto(this Movie movie)
+        {
+            return new MovieDetailsDto
+            {
+                Id = movie.Id,
+                TmdbId = movie.TmdbId,
+                Title = movie.Title,
+                Overview = movie.Overview,
+                PosterUrl = string.IsNullOrEmpty(movie.PosterPath)
+                    ? null
+                    : $"https://image.tmdb.org/t/p/w500{movie.PosterPath}",
+                Rating = movie.VoteAverage,
+                VoteCount = movie.VoteCount,
+                LocalVoteAverage = movie.LocalVoteAverage,
+                LocalVoteCount = movie.LocalVoteCount,
+                Runtime = movie.Runtime,
+                Budget = movie.Budget,
+                Revenue = movie.Revenue,
+                TrailerUrl = movie.TrailerUrl,
+                Genres = movie.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
+
+                Directors = movie.MovieDirectors
+                    .Where(md => md.Person != null)
+                    .Select(md => new PersonDto(
+                        md.Person.Id,
+                        md.Person.Name,
+                        string.IsNullOrEmpty(md.Person.ProfilePath)
+                            ? null
+                            : $"https://image.tmdb.org/t/p/w500{md.Person.ProfilePath}"
+                    ))
+                    .ToList(),
+
+                Cast = movie.MovieCasts
+                    .Where(mc => mc.Person != null)
+                    .OrderBy(mc => mc.DisplayOrder)
+                    .Select(mc => new CastDto(
+                        mc.Person.Id,
+                        mc.Person.Name,
+                        mc.CharacterName,
+                        string.IsNullOrEmpty(mc.Person.ProfilePath)
+                            ? null
+                            : $"https://image.tmdb.org/t/p/w500{mc.Person.ProfilePath}"
+                    ))
+                    .ToList()
+            };
         }
     }
 }

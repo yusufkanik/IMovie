@@ -3,6 +3,7 @@ using static System.Net.WebRequestMethods;
 using MovieAPI.Common;
 using MovieAPI.DTOs.TmdbDTOs;
 
+
 namespace MovieAPI.Services;
 
 public class TmdbService
@@ -83,14 +84,15 @@ public class TmdbService
         };
     }
 
-    public async Task<ServiceResponse<TmdbMovieDto>> GetMovieByTmdbIdAsync(int tmdbId)
+    public async Task<ServiceResponse<TmdbMovieDetailDto>> GetMovieByTmdbIdAsync(int tmdbId)
     {
-        var url = $"movie/{tmdbId}?api_key={_apiKey}&language=en-US";
+        
+        var url = $"movie/{tmdbId}?api_key={_apiKey}&language=en-US&append_to_response=credits,videos";
         var response = await _httpClient.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)
         {
-            return new ServiceResponse<TmdbMovieDto>
+            return new ServiceResponse<TmdbMovieDetailDto>
             {
                 IsSuccess = false,
                 Message = $"TMDB'den film bulunamadı (ID: {tmdbId}).",
@@ -99,12 +101,18 @@ public class TmdbService
         }
 
         var stringData = await response.Content.ReadAsStringAsync();
-        var dto = JsonSerializer.Deserialize<TmdbMovieDto>(stringData);
 
-        return new ServiceResponse<TmdbMovieDto>
+        // JSON snake_case alanları PascalCase C# sınıflarına sorunsuz maplemek için
+        var options = new JsonSerializerOptions
         {
-            Data = dto,
+            PropertyNameCaseInsensitive = true
+        };
 
+        var dto = JsonSerializer.Deserialize<TmdbMovieDetailDto>(stringData, options);
+
+        return new ServiceResponse<TmdbMovieDetailDto>
+        {
+            Data = dto
         };
     }
 }
