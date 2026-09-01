@@ -6,5 +6,8 @@ namespace MovieAPI.Services
     {
         Task<AuthResponseDto> RegisterAsync(RegisterDto request);
         Task<AuthResponseDto> LoginAsync(LoginDto request);
+
+        Task<AuthResponseDto> RefreshTokenAsync(string refreshToken);
+        Task LogoutAsync(int userId);
     }
 }

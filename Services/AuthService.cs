@@ -46,13 +46,7 @@ namespace MovieAPI.Services
             _dbContext.Users.Add(user);
             await _dbContext.SaveChangesAsync();
 
-            return new AuthResponseDto
-            {
-                Token = CreateToken(user),
-                Username = user.UserName,
-                Email = user.Email,
-                Role = user.Role
-            };
+            return await GenerateAuthResponseAsync(user);
         }
 
 
@@ -68,13 +62,7 @@ namespace MovieAPI.Services
                     throw new BadRequestException("Kullanıcı adı veya şifre yanlış.");
                 }
 
-                return new AuthResponseDto
-                {
-                    Email = user.Email,
-                    Username = user.UserName,
-                    Token = CreateToken(user),
-                    Role = user.Role
-                };
+                return await GenerateAuthResponseAsync(user);
             }
 
             throw new BadRequestException("Kullanıcı adı veya şifre yanlış.");
@@ -126,6 +114,73 @@ namespace MovieAPI.Services
             var token = tokenHandler.CreateToken(tokenDescriptor);
 
             return tokenHandler.WriteToken(token);
+        }
+
+        public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+            {
+                throw new UnauthorizedAccessException("Refresh Token bulunamadı.");
+            }
+
+            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+
+            if (user is null)
+            {
+                throw new UnauthorizedAccessException("Geçersiz Refresh Token");
+            }
+
+            if (user.TokenExpires < DateTime.UtcNow)
+            {
+                throw new UnauthorizedAccessException("Refresh Token süresi doldu. Tekrar giriş yapın.");
+            }
+
+            return await GenerateAuthResponseAsync(user);
+
+        }
+
+        public async Task<AuthResponseDto> GenerateAuthResponseAsync(User user)
+        {
+            var accessToken = CreateToken(user);
+            var refreshToken = GenerateRefreshToken();
+
+            user.RefreshToken = refreshToken;
+            user.TokenCreated = DateTime.UtcNow;
+            user.TokenExpires = DateTime.UtcNow.AddDays(7);
+
+            await _dbContext.SaveChangesAsync();
+
+            return new AuthResponseDto
+            {
+                Token = accessToken,
+                RefreshToken = refreshToken,
+                Username = user.UserName,
+                Email = user.Email,
+                Role = user.Role,
+            };
+        }
+
+        private string GenerateRefreshToken()
+        {
+            var randomNumber = new byte[64];
+            using var rng = RandomNumberGenerator.Create();
+
+            rng.GetBytes(randomNumber);
+            return Convert.ToBase64String(randomNumber);
+        }
+
+        public async Task LogoutAsync(int userId)
+        {
+            var user = await _dbContext.Users.FindAsync(userId);
+
+            if (user != null)
+            {
+                // Token bilgilerini temizliyoruz
+                user.RefreshToken = string.Empty;
+                user.TokenExpires = DateTime.UtcNow;
+
+                await _dbContext.SaveChangesAsync();
+            }
         }
     }
 }
