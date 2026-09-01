@@ -6,6 +6,7 @@ using MovieAPI.DTOs.ResponseDTOs;
 using MovieAPI.Exceptions;
 using MovieAPI.Extensions;
 using MovieAPI.Models;
+using System.IO;
 
 namespace MovieAPI.Services
 {
@@ -222,100 +223,223 @@ namespace MovieAPI.Services
         public async Task<MovieDetailsDto> SyncSingleMovieAsync(int tmdbId)
         {
             var tmdbResponse = await _tmdbService.GetMovieByTmdbIdAsync(tmdbId);
+
             if (!tmdbResponse.IsSuccess || tmdbResponse.Data is null)
-                throw new InvalidOperationException($"TMDB Hatası: {tmdbResponse.Message}");
+            {
+                throw new InvalidOperationException(
+                    $"TMDB Hatası: {tmdbResponse.Message}");
+            }
 
             var data = tmdbResponse.Data;
-            var movie = await _context.Movies
-                .Include(m => m.MovieGenres)
-                .Include(m => m.MovieDirectors)
-                .Include(m => m.MovieCasts)
-                .FirstOrDefaultAsync(m => m.TmdbId == tmdbId) ?? new Movie { TmdbId = tmdbId };
 
-            // 1. Temel + Detay Verileri (Poster & TMDB Oy Değerleri Dahil)
-            movie.Title = data.Title;
-            movie.Overview = data.Overview;
-            movie.PosterPath = data.PosterPath;
-            movie.ReleaseDate = data.ReleaseDate;
-            movie.VoteAverage = data.VoteAverage;
-            movie.VoteCount = data.VoteCount;
-            movie.Runtime = data.Runtime;
-            movie.Budget = data.Budget;
-            movie.Revenue = data.Revenue;
-            movie.LastUpdated = DateTime.UtcNow;
+            await using var transaction =
+                await _context.Database.BeginTransactionAsync();
 
-            // LocalVoteAverage ve LocalVoteCount alanlarına dokunmuyoruz (mevcut DB değerleri korunur)
-
-            // 2. Fragman (YouTube)
-            var trailer = data.Videos?.Results?.FirstOrDefault(v => v.Site == "YouTube" && v.Type == "Trailer");
-            movie.TrailerUrl = trailer != null ? $"https://www.youtube.com/watch?v={trailer.Key}" : null;
-
-            // 3. Türler (Genres) Güncellemesi
-            _context.MovieGenres.RemoveRange(movie.MovieGenres);
-            movie.MovieGenres.Clear();
-
-            if (data.Genres != null && data.Genres.Any())
+            try
             {
-                var tmdbGenreIds = data.Genres.Select(g => g.Id).ToList();
+                var movie = await _context.Movies
+                    .Include(m => m.MovieGenres)
+                    .Include(m => m.MovieDirectors)
+                    .Include(m => m.MovieCasts)
+                    .FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
 
-                // Veritabanımızdaki Genre kayıtlarını TMDB Genre ID'sine (veya Id'ye) göre buluyoruz
-                var localGenres = await _context.Genres
-                    .Where(g => tmdbGenreIds.Contains(g.Id))
-                    .ToListAsync();
-
-                foreach (var genre in localGenres)
+                if (movie is null)
                 {
-                    movie.MovieGenres.Add(new MovieGenre
+                    movie = new Movie
+                    {
+                        TmdbId = tmdbId
+                    };
+
+                    _context.Movies.Add(movie);
+                }
+
+                movie.Title = data.Title;
+                movie.Overview = data.Overview;
+                movie.PosterPath = data.PosterPath;
+                movie.ReleaseDate = data.ReleaseDate;
+                movie.VoteAverage = data.VoteAverage;
+                movie.VoteCount = data.VoteCount;
+                movie.Runtime = data.Runtime;
+                movie.Budget = data.Budget;
+                movie.Revenue = data.Revenue;
+                movie.LastUpdated = DateTime.UtcNow;
+
+                var trailer = data.Videos?
+                    .Results?
+                    .FirstOrDefault(video =>
+                        video.Site == "YouTube" &&
+                        video.Type == "Trailer");
+
+                movie.TrailerUrl = trailer is null
+                    ? null
+                    : $"https://www.youtube.com/watch?v={trailer.Key}";
+
+                // Türleri güncelle
+                _context.MovieGenres.RemoveRange(movie.MovieGenres);
+                movie.MovieGenres.Clear();
+
+                if (data.Genres is not null && data.Genres.Count > 0)
+                {
+                    var tmdbGenreIds = data.Genres
+                        .Select(genre => genre.Id)
+                        .ToList();
+
+                    var localGenres = await _context.Genres
+                        .Where(genre => tmdbGenreIds.Contains(genre.Id))
+                        .ToListAsync();
+
+                    foreach (var genre in localGenres)
+                    {
+                        movie.MovieGenres.Add(new MovieGenre
+                        {
+                            Movie = movie,
+                            GenreId = genre.Id
+                        });
+                    }
+                }
+
+                // Yönetmen ve oyuncu verilerini hazırla
+                var directors = data.Credits?
+                    .Crew?
+                    .Where(crew => crew.Job == "Director")
+                    .ToList() ?? [];
+
+                var castList = data.Credits?
+                    .Cast?
+                    .Take(10)
+                    .ToList() ?? [];
+
+                // Tüm kişi ID'lerini tek listede birleştir
+                var personData = directors
+                    .Select(director => (
+                        Id: director.Id,
+                        Name: director.Name,
+                        ProfilePath: director.ProfilePath
+                    ))
+                    .Concat(
+                        castList.Select(actor => (
+                            Id: actor.Id,
+                            Name: actor.Name,
+                            ProfilePath: actor.ProfilePath
+                        ))
+                    )
+                    .ToList();
+
+                // Tüm kişileri tek veritabanı sorgusuyla getir veya oluştur
+                var people = await GetOrCreatePeopleAsync(personData);
+
+                // Eski yönetmen ilişkilerini temizle
+                _context.MovieDirectors.RemoveRange(movie.MovieDirectors);
+                movie.MovieDirectors.Clear();
+
+                // Yeni yönetmen ilişkilerini ekle
+                foreach (var director in directors)
+                {
+                    if (!people.TryGetValue(director.Id, out var person))
+                    {
+                        continue;
+                    }
+
+                    movie.MovieDirectors.Add(new MovieDirector
                     {
                         Movie = movie,
-                        GenreId = genre.Id
+                        Person = person
                     });
+                }
+
+                // Eski oyuncu ilişkilerini temizle
+                _context.MovieCasts.RemoveRange(movie.MovieCasts);
+                movie.MovieCasts.Clear();
+
+                // Yeni oyuncu ilişkilerini ekle
+                for (int i = 0; i < castList.Count; i++)
+                {
+                    var actor = castList[i];
+
+                    if (!people.TryGetValue(actor.Id, out var person))
+                    {
+                        continue;
+                    }
+
+                    movie.MovieCasts.Add(new MovieCast
+                    {
+                        Movie = movie,
+                        Person = person,
+                        CharacterName = actor.Character,
+                        DisplayOrder = i + 1
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return await GetMovieByIdAsync(movie.Id);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        private async Task<Dictionary<int, Person>> GetOrCreatePeopleAsync(
+            IEnumerable<(int Id, string Name, string? ProfilePath)> peopleData)
+        {
+            var people = peopleData
+                .GroupBy(person => person.Id)
+                .Select(group => group.First())
+                .ToList();
+
+            if (people.Count == 0)
+            {
+                return new Dictionary<int, Person>();
+            }
+
+            var personIds = people
+                .Select(person => person.Id)
+                .ToList();
+
+            var peopleFromDatabase = await _context.People
+                .Where(person => personIds.Contains(person.Id))
+                .ToListAsync();
+
+            var peopleDictionary = peopleFromDatabase
+                .ToDictionary(person => person.Id);
+
+            foreach (var trackedPerson in _context.People.Local)
+            {
+                if (personIds.Contains(trackedPerson.Id))
+                {
+                    peopleDictionary[trackedPerson.Id] = trackedPerson;
                 }
             }
 
-            // 4. Yönetmenler
-            _context.MovieDirectors.RemoveRange(movie.MovieDirectors);
-            movie.MovieDirectors.Clear();
-            var directors = data.Credits?.Crew?.Where(c => c.Job == "Director").ToList() ?? new();
-            foreach (var dir in directors)
+            foreach (var personData in people)
             {
-                var person = await GetOrCreatePersonAsync(dir.Id, dir.Name, dir.ProfilePath);
-                movie.MovieDirectors.Add(new MovieDirector { Person = person });
+                if (!peopleDictionary.TryGetValue(personData.Id, out var person))
+                {
+                    person = new Person
+                    {
+                        Id = personData.Id,
+                        Name = personData.Name,
+                        ProfilePath = personData.ProfilePath
+                    };
+
+                    _context.People.Add(person);
+                    peopleDictionary[person.Id] = person;
+                }
+                else
+                {
+                    person.Name = personData.Name;
+
+                    if (!string.IsNullOrWhiteSpace(personData.ProfilePath))
+                    {
+                        person.ProfilePath = personData.ProfilePath;
+                    }
+                }
             }
 
-            // 5. Oyuncular (İlk 10)
-            _context.MovieCasts.RemoveRange(movie.MovieCasts);
-            movie.MovieCasts.Clear();
-            var castList = data.Credits?.Cast?.Take(10).ToList() ?? new();
-            for (int i = 0; i < castList.Count; i++)
-            {
-                var actor = castList[i];
-                var person = await GetOrCreatePersonAsync(actor.Id, actor.Name, actor.ProfilePath);
-                movie.MovieCasts.Add(new MovieCast { Person = person, CharacterName = actor.Character, DisplayOrder = i + 1 });
-            }
-
-            if (movie.Id == 0) _context.Movies.Add(movie);
-
-            await _context.SaveChangesAsync();
-            return await GetMovieByIdAsync(movie.Id);
-        }
-
-        private async Task<Person> GetOrCreatePersonAsync(int tmdbPersonId, string name, string? profilePath)
-        {
-            var person = await _context.People.FirstOrDefaultAsync(p => p.Id == tmdbPersonId)
-                         ?? _context.People.Local.FirstOrDefault(p => p.Id == tmdbPersonId);
-
-            if (person is null)
-            {
-                person = new Person { Id = tmdbPersonId, Name = name, ProfilePath = profilePath };
-                _context.People.Add(person);
-            }
-            else if (!string.IsNullOrEmpty(profilePath) && string.IsNullOrEmpty(person.ProfilePath))
-            {
-                person.ProfilePath = profilePath; // Daha önce profilePath null kaydedildiyse güncelle
-            }
-
-            return person;
+            return peopleDictionary;
         }
 
         public async Task<List<MovieResponseDTO>> GetSimilarMoviesAsync(int movieId)
