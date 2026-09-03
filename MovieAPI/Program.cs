@@ -14,6 +14,17 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowNextJS", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -66,6 +77,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 var app = builder.Build();
 
+app.UseRouting();
+app.UseCors("AllowNextJS");
 app.UseAuthentication();
 app.UseAuthorization();
 
