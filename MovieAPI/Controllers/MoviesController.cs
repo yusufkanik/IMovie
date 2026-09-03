@@ -60,7 +60,7 @@ namespace MovieAPI.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         [HttpPost("sync/{tmdbId:int}")]
         public async Task<ActionResult<MovieResponseDTO>> SyncSingleMovie(int tmdbId)
         {

@@ -1,88 +1,89 @@
 'use client';
 
-import {useEffect, useState, use} from 'react'
-import {useRouter} from 'next/navigation'
-import {api} from '@/lib/api'
+import { useEffect, useState, use } from 'react';
+import { useRouter } from 'next/navigation';
+import { movieService } from '@/services/movieService';
 import { MovieDetails, Movie } from '@/types/movie';
 import { useAuth } from '@/context/AuthContext';
 
 export default function MovieDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-    const resolvedParams = use(params);
-    const movieId = resolvedParams.id;
+  const resolvedParams = use(params);
+  const movieId = Number(resolvedParams.id);
 
-    const router = useRouter();
-    const {isAuthenticated, loading: authLoading} = useAuth();
+  const router = useRouter();
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
-    const [movie, setMovie] = useState<MovieDetails | null>(null);
-    const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+  const [movie, setMovie] = useState<MovieDetails | null>(null);
+  const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-    useEffect(() => {
-        if (authLoading) return;
-        if (!isAuthenticated) {
-            router.push("/login");
-            return;
-        }
-
-        const fetchMovieData = async () => {
-            try {
-                setLoading(true);
-                const [movieRes, similarRes] = await Promise.all([
-                    api.get<MovieDetails>(`/movies/${movieId}`),
-                    api.get<Movie[]>(`/movies/${movieId}/similar`)
-                ]);
-
-                setMovie(movieRes.data);
-                setSimilarMovies(similarRes.data);
-            } 
-            catch(err: any) {
-                console.error(err);
-                setError('Film detayları yüklenirken bir hata oluştu.');
-            }
-            finally {
-                setLoading(false);
-            }
-        };
-
-        fetchMovieData();
-    }, [movieId, isAuthenticated, authLoading, router]);
-
-    if (authLoading || loading) {
-
-        return (
-        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
-            <p className="text-slate-400 animate-pulse">Film yükleniyor...</p>
-        </div>
-        );
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
     }
 
-    if (error || !movie) {
+    const fetchMovieData = async () => {
+      try {
+        setLoading(true);
+        setError('');
 
-        return (
-        <div className="min-h-screen bg-slate-950 text-white p-8 flex flex-col items-center justify-center">
-            <p className="text-red-400 mb-4">{error || 'Film bulunamadı.'}</p>
-            <button
-            onClick={() => router.push('/')}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm transition-colors"
-            >
-            Ana Sayfaya Dön
-            </button>
-        </div>
-        );
-    }
+        // Paralel API istekleri (movieService üzerinden)
+        const [movieData, similarData] = await Promise.all([
+          movieService.getMovieById(movieId),
+          movieService.getSimilarMovies(movieId),
+        ]);
 
-    // Youtube URL'sinden Embed ID çıkarma
-    const getEmbedYoutubeUrl = (url?: string) => {
-        if (!url) return null;
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-        const match = url.match(regExp);
-        return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
+        setMovie(movieData);
+        setSimilarMovies(similarData);
+      } catch (err: any) {
+        console.error(err);
+        setError('Film detayları yüklenirken bir hata oluştu.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const embedTrailerUrl = getEmbedYoutubeUrl(movie.trailerUrl);
+    if (movieId) {
+      fetchMovieData();
+    }
+  }, [movieId, isAuthenticated, authLoading, router]);
 
+  if (authLoading || loading) {
     return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <p className="text-slate-400 animate-pulse">Film yükleniyor...</p>
+      </div>
+    );
+  }
+
+  if (error || !movie) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white p-8 flex flex-col items-center justify-center">
+        <p className="text-red-400 mb-4">{error || 'Film bulunamadı.'}</p>
+        <button
+          onClick={() => router.push('/')}
+          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm transition-colors cursor-pointer"
+        >
+          Ana Sayfaya Dön
+        </button>
+      </div>
+    );
+  }
+
+  // Youtube URL'sinden Embed ID çıkarma
+  const getEmbedYoutubeUrl = (url?: string) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return match && match[2].length === 11 ? `https://www.youtube.com/embed/${match[2]}` : null;
+  };
+
+  const embedTrailerUrl = getEmbedYoutubeUrl(movie.trailerUrl);
+
+  return (
     <div className="min-h-screen bg-slate-950 text-white p-6 md:p-12">
       <div className="max-w-6xl mx-auto space-y-12">
         {/* Geri Dön Butonu */}
@@ -109,12 +110,12 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
             <div>
               <h1 className="text-3xl md:text-4xl font-extrabold text-slate-100">{movie.title}</h1>
               <div className="flex flex-wrap items-center gap-3 mt-3 text-sm text-slate-400">
-                <span className="text-yellow-400 font-semibold">★ {movie.rating.toFixed(1)}</span>
+                <span className="text-yellow-400 font-semibold">★ {(movie.rating ?? 0).toFixed(1)}</span>
                 <span>•</span>
-                <span>{movie.runtime} dk</span>
+                <span>{movie.runtime ?? 0} dk</span>
                 <span>•</span>
                 <div className="flex gap-1.5 flex-wrap">
-                  {movie.genres.map((g, i) => (
+                  {movie.genres?.map((g, i) => (
                     <span key={i} className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 rounded-md text-xs">
                       {g}
                     </span>
@@ -134,13 +135,13 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
               <div>
                 <span className="text-slate-500 block">Bütçe</span>
                 <span className="text-slate-200 font-medium">
-                  {movie.budget > 0 ? `$${movie.budget.toLocaleString()}` : '-'}
+                  {movie.budget && movie.budget > 0 ? `$${movie.budget.toLocaleString()}` : '-'}
                 </span>
               </div>
               <div>
                 <span className="text-slate-500 block">Hasılat</span>
                 <span className="text-slate-200 font-medium">
-                  {movie.revenue > 0 ? `$${movie.revenue.toLocaleString()}` : '-'}
+                  {movie.revenue && movie.revenue > 0 ? `$${movie.revenue.toLocaleString()}` : '-'}
                 </span>
               </div>
               <div>
@@ -152,10 +153,10 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* Yönetmenler */}
-            {movie.directors.length > 0 && (
+            {movie.directors && movie.directors.length > 0 && (
               <div className="pt-2">
                 <h4 className="text-xs text-slate-500 mb-1">Yönetmen</h4>
-                <p className="text-sm text-slate-200">{movie.directors.map(d => d.name).join(', ')}</p>
+                <p className="text-sm text-slate-200">{movie.directors.map((d) => d.name).join(', ')}</p>
               </div>
             )}
           </div>
@@ -177,7 +178,7 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
         )}
 
         {/* Oyuncu Kadrosu */}
-        {movie.cast.length > 0 && (
+        {movie.cast && movie.cast.length > 0 && (
           <section className="space-y-4">
             <h2 className="text-xl font-bold text-slate-200">Oyuncular</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
@@ -220,7 +221,7 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
                   )}
                   <div className="p-3">
                     <h3 className="font-semibold text-xs text-slate-200 truncate">{m.title}</h3>
-                    <span className="text-[10px] text-yellow-400 mt-1 block">★ {m.rating.toFixed(1)}</span>
+                    <span className="text-[10px] text-yellow-400 mt-1 block">★ {(m.rating ?? 0).toFixed(1)}</span>
                   </div>
                 </div>
               ))}
