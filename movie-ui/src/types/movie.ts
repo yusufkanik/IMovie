@@ -10,6 +10,7 @@ export interface Movie {
   localVoteAverage: number;
   localVoteCount: number;
   genres: string[];
+  releaseDate?: string;
 }
 
 export interface PagedResponse<T> {
@@ -37,4 +38,5 @@ export interface MovieDetails extends Movie {
   trailerUrl?: string;
   directors: Person[];
   cast: Cast[];
+  releaseDate?: string;
 }

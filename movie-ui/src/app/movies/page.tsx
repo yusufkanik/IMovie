@@ -136,7 +136,7 @@ function CatalogContent() {
   } 
 }, [loading, movies]);
 
-  return (
+ return (
     <div className="min-h-screen bg-slate-950 text-white p-6 md:p-12">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Başlık ve Toplam Sayı */}
@@ -311,9 +311,18 @@ function CatalogContent() {
 
                   <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
                     <div>
-                      <h3 className="font-bold text-sm text-slate-100 truncate group-hover:text-indigo-400 transition-colors">
-                        {movie.title}
-                      </h3>
+                      {/* Film Başlığı ve Yayın Yılı */}
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-bold text-sm text-slate-100 truncate group-hover:text-indigo-400 transition-colors">
+                          {movie.title}
+                        </h3>
+                        {movie.releaseDate && (
+                          <span className="text-[11px] font-medium text-slate-400 shrink-0">
+                            {new Date(movie.releaseDate).getFullYear()}
+                          </span>
+                        )}
+                      </div>
+
                       {movie.genres && movie.genres.length > 0 && (
                         <p className="text-[11px] text-slate-500 truncate mt-0.5">
                           {movie.genres.join(', ')}

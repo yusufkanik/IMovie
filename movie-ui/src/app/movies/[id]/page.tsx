@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { movieService } from '@/services/movieService';
+import { favoriteService } from '@/services/favoriteService';
 import { MovieDetails, Movie } from '@/types/movie';
 import { useAuth } from '@/context/AuthContext';
 
@@ -17,6 +18,9 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
   const [similarMovies, setSimilarMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -51,6 +55,35 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
     }
   }, [movieId, isAuthenticated, authLoading, router]);
 
+  useEffect(() => {    // find out if the movie is favorite
+    if (isAuthenticated && movieId) {
+      favoriteService.getUserFavorites()
+                     .then(favs => setIsFavorite(favs.some(m => m.id === Number(movieId))))
+                     .catch((err) => console.error("Favori durumu alınamadı", err));
+    }
+  }, [isAuthenticated, movieId])
+
+  const HandleToggleFavorite = async () => {
+    setFavLoading(true);
+
+    try {
+      if (isFavorite) {
+        await favoriteService.removeFavorite(movieId);
+        setIsFavorite(false);
+      }
+      else {
+        await favoriteService.addFavorite(movieId);
+        setIsFavorite(true);
+      }
+    }
+    catch(err) {
+      console.error("Film favori işleminde bir hata oldu", err);
+    }
+    finally {
+      setFavLoading(false);
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
@@ -83,7 +116,7 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
 
   const embedTrailerUrl = getEmbedYoutubeUrl(movie.trailerUrl);
 
-  return (
+return (
     <div className="min-h-screen bg-slate-950 text-white p-6 md:p-12">
       <div className="max-w-6xl mx-auto space-y-12">
         {/* Geri Dön Butonu */}
@@ -105,23 +138,63 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
             )}
           </div>
 
-          {/* Film Metadataları */}
           <div className="md:col-span-2 space-y-6">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-slate-100">{movie.title}</h1>
-              <div className="flex flex-wrap items-center gap-3 mt-3 text-sm text-slate-400">
-                <span className="text-yellow-400 font-semibold">★ {(movie.rating ?? 0).toFixed(1)}</span>
-                <span>•</span>
-                <span>{movie.runtime ?? 0} dk</span>
-                <span>•</span>
-                <div className="flex gap-1.5 flex-wrap">
-                  {movie.genres?.map((g, i) => (
-                    <span key={i} className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 rounded-md text-xs">
-                      {g}
-                    </span>
-                  ))}
+            {/* BAŞLIK VE FAVORİ BUTONU */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-extrabold text-slate-100">{movie.title}</h1>
+                <div className="flex flex-wrap items-center gap-3 mt-3 text-sm text-slate-400">
+                  <span className="text-yellow-400 font-semibold">★ {(movie.rating ?? 0).toFixed(1)}</span>
+                  
+                  {/* YAYIN TARİHİ EKLENDİ */}
+                  {movie.releaseDate && (
+                    <>
+                      <span>•</span>
+                      <span>
+                        {new Date(movie.releaseDate).toLocaleDateString('tr-TR', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </>
+                  )}
+
+                  <span>•</span>
+                  <span>{movie.runtime ?? 0} dk</span>
+                  <span>•</span>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {movie.genres?.map((g, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 rounded-md text-xs">
+                        {g}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
+
+              {/* FAVORİ BUTONU */}
+              <button
+                onClick={HandleToggleFavorite}
+                disabled={favLoading}
+                className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer border shrink-0 ${
+                  isFavorite
+                    ? 'bg-rose-500/10 border-rose-500/40 text-rose-400 hover:bg-rose-500/20'
+                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white'
+                } ${favLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {favLoading ? (
+                  <span className="animate-pulse">İşleniyor...</span>
+                ) : isFavorite ? (
+                  <>
+                    <span className="text-rose-500 text-sm">♥</span> Favorilerimde
+                  </>
+                ) : (
+                  <>
+                    <span className="text-slate-400 text-sm">♡</span> Favorilere Ekle
+                  </>
+                )}
+              </button>
             </div>
 
             {/* Özet */}
