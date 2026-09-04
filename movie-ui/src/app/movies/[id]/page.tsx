@@ -6,6 +6,7 @@ import { movieService } from '@/services/movieService';
 import { favoriteService } from '@/services/favoriteService';
 import { MovieDetails, Movie } from '@/types/movie';
 import { useAuth } from '@/context/AuthContext';
+import MovieReviews from '@/components/movieReview';
 
 export default function MovieDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -82,7 +83,16 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
     finally {
       setFavLoading(false);
     }
-  }
+  };
+
+  const handleReviewSubmitted = async () => {
+    try {
+      const updatedMovie = await movieService.getMovieById(movieId);
+      setMovie(updatedMovie);
+    } catch (err) {
+      console.error('Film bilgileri yenilenirken hata oluştu:', err);
+    }
+  };
 
   if (authLoading || loading) {
     return (
@@ -277,6 +287,8 @@ return (
             </div>
           </section>
         )}
+
+        <MovieReviews movieId={movieId} onReviewSubmitted={handleReviewSubmitted} />
 
         {/* Benzer Filmler */}
         {similarMovies.length > 0 && (

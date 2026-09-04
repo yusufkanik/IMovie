@@ -17,4 +17,5 @@ export const favoriteService = {
   removeFavorite: async (movieId: number): Promise<void> => {
     await api.delete(`/favorites/${movieId}`);
   },
+  
 };
