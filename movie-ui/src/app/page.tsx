@@ -68,12 +68,6 @@ export default function HomePage() {
             Hoş geldin, <span className="text-slate-200 font-medium">{user?.username || user?.email}</span>!
           </p>
         </div>
-        <button
-          onClick={logout}
-          className="px-4 py-2 bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30 rounded-lg text-sm transition-colors cursor-pointer"
-        >
-          Çıkış Yap
-        </button>
       </header>
 
       {/* Main Content */}
