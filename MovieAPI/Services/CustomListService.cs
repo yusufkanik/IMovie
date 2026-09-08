@@ -148,7 +148,7 @@ namespace MovieAPI.Services
                     .ToListAsync();
         }
 
-        public async Task<CustomListDetailDto> GetListByIdAsync(int listId, int userId)
+        public async Task<CustomListDetailDto> GetListByIdAsync(int listId, int? userId)
         {
             var list = await _context.CustomLists
                                      .Include(l => l.User)

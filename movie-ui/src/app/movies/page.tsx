@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { movieService, GetMoviesQuery } from '@/services/movieService';
 import { Movie } from '@/types/movie';
 import { useDebounce } from '@/hooks/useDebounce';
+import { AddToListModal } from '@/components/AddToListModal';
 
 function CatalogContent() {
   const router = useRouter();
@@ -38,9 +39,12 @@ function CatalogContent() {
   const [loading, setLoading] = useState(true);
   const [syncingTmdbId, setSyncingTmdbId] = useState<number | null>(null);
 
+  // Listeye ekleme modali için seçilen film ID state'i
+  const [selectedMovieIdForList, setSelectedMovieIdForList] = useState<number | null>(null);
+
   const debouncedSearch = useDebounce(searchTerm, 400);
 
-  // 2. State Değiştiğinde URL'i Güncelle (Sayfa yenilenmeden URL güncellenir)
+  // 2. State Değiştiğinde URL'i Güncelle
   useEffect(() => {
     const params = new URLSearchParams();
 
@@ -54,7 +58,6 @@ function CatalogContent() {
     if (minRating) params.set('minRating', minRating);
     if (maxRating) params.set('maxRating', maxRating);
 
-    // URL'i arka planda güncelle (sayfa scroll'unu sıfırlamadan)
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [debouncedSearch, page, useTmdbSearch, sortBy, sortOrder, minYear, maxYear, minRating, maxRating, pathname, router]);
 
@@ -102,41 +105,62 @@ function CatalogContent() {
     fetchMovies();
   }, [debouncedSearch, sortBy, sortOrder, minYear, maxYear, minRating, maxRating, useTmdbSearch, page]);
 
-  // Filme Tıklama
+  // Filme Tıklama (Detaya Gitme)
   const handleMovieClick = async (movie: Movie) => {
-
     sessionStorage.setItem('catalog_scroll_pos', window.scrollY.toString());
     if (useTmdbSearch && movie.tmdbId) {
       try {
         setSyncingTmdbId(movie.tmdbId);
         const syncedMovie = await movieService.syncMovie(movie.tmdbId);
-        router.push(`/movies/${syncedMovie.id}`);
+        if (syncedMovie?.id) {
+          router.push(`/movies/${syncedMovie.id}`);
+        }
       } catch (err) {
         console.error('TMDB Filmi senkronize edilemedi:', err);
       } finally {
         setSyncingTmdbId(null);
       }
-    } else {
+    } else if (movie.id) {
       router.push(`/movies/${movie.id}`);
     }
   };
 
-  useEffect(() => {
-  if (!loading && movies.length > 0) {
-    const savedScrollPos = sessionStorage.getItem('catalog_scroll_pos');
-    
-    if (savedScrollPos) {
-      window.scrollTo({
-        top: Number(savedScrollPos),
-        behavior: 'instant', // Anında kaydır, yumuşak geçiş yapıp gözü yorma
-      });
-      // Tekrar tekrar kaydırmaması için kullandık sonra siliyoruz
-      sessionStorage.removeItem('catalog_scroll_pos');
-    }
-  } 
-}, [loading, movies]);
+  // Kart üzerindeki "Listeye Ekle" Butonuna Tıklama
+  const handleAddToListClick = async (e: React.MouseEvent, movie: Movie) => {
+    e.stopPropagation();
 
- return (
+    if (useTmdbSearch && movie.tmdbId && !movie.id) {
+      try {
+        setSyncingTmdbId(movie.tmdbId);
+        const syncedMovie = await movieService.syncMovie(movie.tmdbId);
+        if (syncedMovie?.id) {
+          setSelectedMovieIdForList(syncedMovie.id);
+        }
+      } catch (err) {
+        console.error('TMDB Filmi senkronize edilemedi:', err);
+      } finally {
+        setSyncingTmdbId(null);
+      }
+    } else if (movie.id) {
+      setSelectedMovieIdForList(movie.id);
+    }
+  };
+
+  useEffect(() => {
+    if (!loading && movies.length > 0) {
+      const savedScrollPos = sessionStorage.getItem('catalog_scroll_pos');
+      
+      if (savedScrollPos) {
+        window.scrollTo({
+          top: Number(savedScrollPos),
+          behavior: 'instant',
+        });
+        sessionStorage.removeItem('catalog_scroll_pos');
+      }
+    } 
+  }, [loading, movies]);
+
+  return (
     <div className="min-h-screen bg-slate-950 text-white p-6 md:p-12">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Başlık ve Toplam Sayı */}
@@ -290,6 +314,14 @@ function CatalogContent() {
                   className="group relative bg-slate-900 rounded-xl overflow-hidden border border-slate-800 hover:border-slate-700 cursor-pointer transition-all duration-300 flex flex-col"
                 >
                   <div className="aspect-[2/3] w-full bg-slate-950 relative overflow-hidden">
+                    {/* Listeye Ekle Butonu */}
+                    <button
+                      onClick={(e) => handleAddToListClick(e, movie)}
+                      className="absolute top-2 right-2 z-10 px-2 py-1 bg-slate-950/80 hover:bg-indigo-600 text-white rounded-md backdrop-blur-sm transition-colors text-[11px] font-semibold border border-slate-700/60 shadow-md"
+                    >
+                      + Listeye Ekle
+                    </button>
+
                     {movie.posterUrl ? (
                       <img
                         src={movie.posterUrl}
@@ -303,7 +335,7 @@ function CatalogContent() {
                     )}
 
                     {isSyncing && (
-                      <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center p-2 text-center">
+                      <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center p-2 text-center z-20">
                         <span className="text-xs text-indigo-400 animate-pulse">İçeri aktarılıyor...</span>
                       </div>
                     )}
@@ -372,15 +404,22 @@ function CatalogContent() {
           </div>
         )}
       </div>
+
+      {/* Listeye Ekle Modal Şartlı Render */}
+      {selectedMovieIdForList !== null && (
+        <AddToListModal
+          movieId={selectedMovieIdForList}
+          onClose={() => setSelectedMovieIdForList(null)}
+        />
+      )}
     </div>
   );
 }
 
-// Next.js useSearchParams Suspense Sarmalayıcısı
 export default function MovieCatalogPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-slate-950 text-white p-12">Yükleniyor...</div>}>
       <CatalogContent />
     </Suspense>
   );
-}
+};
