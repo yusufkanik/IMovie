@@ -16,6 +16,15 @@ namespace MovieAPI.Services
             _context = context;
         }
 
+        public async Task<WatchStatus?> GetWatchStatusAsync(int userId, int movieId)
+        {
+            var userStatus = await _context.UserMovieStatuses
+                .AsNoTracking()
+                .FirstOrDefaultAsync(ums => ums.UserId == userId && ums.MovieId == movieId);
+
+            return userStatus?.status;
+        }
+
         public async Task SetWatchStatusAsync(int userId, int movieId, WatchStatus watchStatus)
         {
             var movieExists = await _context.Movies.AnyAsync(m => m.Id == movieId);
@@ -71,14 +80,16 @@ namespace MovieAPI.Services
 
         public async Task<List<MovieResponseDTO>> GetUserMoviesByStatusAsync(int userId, WatchStatus status)
         {
-           return await _context.UserMovieStatuses
-                            .Include(ums => ums.Movie)
-                            .ThenInclude(m => m.MovieGenres)
-                            .ThenInclude(mg => mg.Genre)
-                            .Where(ums => ums.UserId == userId && ums.status == status)
-                            .AsNoTracking()
-                            .Select(ums => ums.Movie.ToResponseDto())
-                            .ToListAsync();
+            var userStatuses = await _context.UserMovieStatuses
+         .Include(ums => ums.Movie)
+             .ThenInclude(m => m.MovieGenres)
+             .ThenInclude(mg => mg.Genre)
+         .Where(ums => ums.UserId == userId && ums.status == status)
+         .AsNoTracking()
+         .ToListAsync(); // Önce veritabanından çek verileri
+
+            // DTO dönüşümünü bellekte (In-Memory) yap
+            return userStatuses.Select(ums => ums.Movie.ToResponseDto()).ToList();
         }
     }
 }

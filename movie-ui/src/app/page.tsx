@@ -63,7 +63,7 @@ export default function HomePage() {
       {/* Header */}
       <header className="max-w-5xl mx-auto flex justify-between items-center pb-8 border-b border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold text-indigo-400">Film SaaS Platformu</h1>
+          <h1 className="text-2xl font-bold text-indigo-400">Film Dünyana Hoş Geldin</h1>
           <p className="text-sm text-slate-400">
             Hoş geldin, <span className="text-slate-200 font-medium">{user?.username || user?.email}</span>!
           </p>

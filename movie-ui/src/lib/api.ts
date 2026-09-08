@@ -23,6 +23,21 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Çakışmaları önlemek için kilit ve kuyruk değişkenleri
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: any) => void }> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -33,7 +48,21 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Yenileme işlemi sürüyorsa diğer istekleri bekleme kuyruğuna al
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({
+            resolve: (token: string) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(api(originalRequest));
+            },
+            reject: (err) => reject(err),
+          });
+        });
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
 
       try {
         const response = await axios.post(
@@ -45,12 +74,17 @@ api.interceptors.response.use(
         const newAccessToken = response.data.token;
         setAccessToken(newAccessToken);
 
+        // Bekleyen tüm istekleri yeni token ile çöz
+        processQueue(null, newAccessToken);
+
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
+        processQueue(refreshError, null);
         setAccessToken(null);
-        // Otomatik sayfa yönlendirmesini kaldırdık, kontrolü React'e bıraktık
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 

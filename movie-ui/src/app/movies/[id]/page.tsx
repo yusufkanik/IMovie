@@ -4,9 +4,11 @@ import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { movieService } from '@/services/movieService';
 import { favoriteService } from '@/services/favoriteService';
+import { userService, WatchStatus } from '@/services/userService';
 import { MovieDetails, Movie } from '@/types/movie';
 import { useAuth } from '@/context/AuthContext';
 import MovieReviews from '@/components/movieReview';
+import { AddToListModal } from '@/components/ChangeMovieStatusModal';
 
 export default function MovieDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -23,6 +25,10 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
   const [isFavorite, setIsFavorite] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
 
+  // İzleme durumu state'i
+  const [currentStatus, setCurrentStatus] = useState<WatchStatus | null>(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+
   useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated) {
@@ -35,7 +41,6 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
         setLoading(true);
         setError('');
 
-        // Paralel API istekleri (movieService üzerinden)
         const [movieData, similarData] = await Promise.all([
           movieService.getMovieById(movieId),
           movieService.getSimilarMovies(movieId),
@@ -56,13 +61,20 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
     }
   }, [movieId, isAuthenticated, authLoading, router]);
 
-  useEffect(() => {    // find out if the movie is favorite
+  // Favori ve İzleme Durumunu Çekme
+  useEffect(() => {
     if (isAuthenticated && movieId) {
       favoriteService.getUserFavorites()
-                     .then(favs => setIsFavorite(favs.some(m => m.id === Number(movieId))))
-                     .catch((err) => console.error("Favori durumu alınamadı", err));
+        .then(favs => setIsFavorite(favs.some(m => m.id === Number(movieId))))
+        .catch((err) => console.error("Favori durumu alınamadı", err));
+
+      if (userService.getWatchStatus) {
+        userService.getWatchStatus(movieId)
+          .then(status => setCurrentStatus(status))
+          .catch((err) => console.error("İzleme durumu alınamadı", err));
+      }
     }
-  }, [isAuthenticated, movieId])
+  }, [isAuthenticated, movieId]);
 
   const HandleToggleFavorite = async () => {
     setFavLoading(true);
@@ -71,16 +83,13 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
       if (isFavorite) {
         await favoriteService.removeFavorite(movieId);
         setIsFavorite(false);
-      }
-      else {
+      } else {
         await favoriteService.addFavorite(movieId);
         setIsFavorite(true);
       }
-    }
-    catch(err) {
+    } catch(err) {
       console.error("Film favori işleminde bir hata oldu", err);
-    }
-    finally {
+    } finally {
       setFavLoading(false);
     }
   };
@@ -91,6 +100,32 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
       setMovie(updatedMovie);
     } catch (err) {
       console.error('Film bilgileri yenilenirken hata oluştu:', err);
+    }
+  };
+
+  // İzleme durumuna göre butonun etiket ve stilini belirleyen fonksiyon
+  const getStatusButtonConfig = () => {
+    switch (currentStatus) {
+      case WatchStatus.Watched:
+        return {
+          label: '✓ İzledim',
+          className: 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20',
+        };
+      case WatchStatus.PlanToWatch:
+        return {
+          label: '📌 İzleyeceğim',
+          className: 'bg-amber-500/10 border-amber-500/40 text-amber-400 hover:bg-amber-500/20',
+        };
+      case WatchStatus.Dropped:
+        return {
+          label: '✕ Yarıda Bıraktım',
+          className: 'bg-rose-500/10 border-rose-500/40 text-rose-400 hover:bg-rose-500/20',
+        };
+      default:
+        return {
+          label: '👁️ İzleme Durumu',
+          className: 'bg-indigo-600 hover:bg-indigo-500 text-white border-transparent',
+        };
     }
   };
 
@@ -116,7 +151,6 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  // Youtube URL'sinden Embed ID çıkarma
   const getEmbedYoutubeUrl = (url?: string) => {
     if (!url) return null;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -125,8 +159,9 @@ export default function MovieDetailsPage({ params }: { params: Promise<{ id: str
   };
 
   const embedTrailerUrl = getEmbedYoutubeUrl(movie.trailerUrl);
+  const statusConfig = getStatusButtonConfig();
 
-return (
+  return (
     <div className="min-h-screen bg-slate-950 text-white p-6 md:p-12">
       <div className="max-w-6xl mx-auto space-y-12">
         {/* Geri Dön Butonu */}
@@ -149,14 +184,13 @@ return (
           </div>
 
           <div className="md:col-span-2 space-y-6">
-            {/* BAŞLIK VE FAVORİ BUTONU */}
+            {/* BAŞLIK VE AKSİYON BUTONLARI */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
               <div>
                 <h1 className="text-3xl md:text-4xl font-extrabold text-slate-100">{movie.title}</h1>
                 <div className="flex flex-wrap items-center gap-3 mt-3 text-sm text-slate-400">
                   <span className="text-yellow-400 font-semibold">★ {(movie.rating ?? 0).toFixed(1)}</span>
                   
-                  {/* YAYIN TARİHİ EKLENDİ */}
                   {movie.releaseDate && (
                     <>
                       <span>•</span>
@@ -183,28 +217,38 @@ return (
                 </div>
               </div>
 
-              {/* FAVORİ BUTONU */}
-              <button
-                onClick={HandleToggleFavorite}
-                disabled={favLoading}
-                className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer border shrink-0 ${
-                  isFavorite
-                    ? 'bg-rose-500/10 border-rose-500/40 text-rose-400 hover:bg-rose-500/20'
-                    : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white'
-                } ${favLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {favLoading ? (
-                  <span className="animate-pulse">İşleniyor...</span>
-                ) : isFavorite ? (
-                  <>
-                    <span className="text-rose-500 text-sm">♥</span> Favorilerimde
-                  </>
-                ) : (
-                  <>
-                    <span className="text-slate-400 text-sm">♡</span> Favorilere Ekle
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2.5 shrink-0">
+                {/* DİNAMİK İZLEME DURUMU BUTONU */}
+                <button
+                  onClick={() => setShowStatusModal(true)}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-md flex items-center gap-1.5 ${statusConfig.className}`}
+                >
+                  {statusConfig.label}
+                </button>
+
+                {/* FAVORİ BUTONU */}
+                <button
+                  onClick={HandleToggleFavorite}
+                  disabled={favLoading}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer border ${
+                    isFavorite
+                      ? 'bg-rose-500/10 border-rose-500/40 text-rose-400 hover:bg-rose-500/20'
+                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white'
+                  } ${favLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {favLoading ? (
+                    <span className="animate-pulse">İşleniyor...</span>
+                  ) : isFavorite ? (
+                    <>
+                      <span className="text-rose-500 text-sm">♥</span> Favorilerimde
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-slate-400 text-sm">♡</span> Favorilere Ekle
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Özet */}
@@ -314,6 +358,19 @@ return (
           </section>
         )}
       </div>
+
+      {/* İZLEME DURUMU MODALI */}
+      {showStatusModal && (
+        <AddToListModal
+          movieId={movieId}
+          initialStatus={currentStatus}
+          onClose={() => setShowStatusModal(false)}
+          onSuccess={(newStatus: WatchStatus) => {
+            setCurrentStatus(newStatus);
+            setShowStatusModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }

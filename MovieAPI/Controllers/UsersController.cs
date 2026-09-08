@@ -5,6 +5,7 @@ using MovieAPI.Extensions;
 using MovieAPI.Models;
 using MovieAPI.Services;
 using System.Security.Claims;
+using MovieAPI.DTOs.ResponseDTOs;
 
 namespace MovieAPI.Controllers
 {
@@ -20,6 +21,15 @@ namespace MovieAPI.Controllers
             _service = service;
         }
 
+        [HttpGet("me/movies/{movieId}/status")]
+        public async Task<IActionResult> GetWatchStatus(int movieId)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var status = await _service.GetWatchStatusAsync(userId, movieId);
+
+            return Ok(new { status });
+        }
+
         [HttpGet("me/stats")]
         public async Task<IActionResult> GetMyStats()
         {
@@ -27,6 +37,15 @@ namespace MovieAPI.Controllers
             var result = await _service.GetUserStatsAsync(userId);
 
             return Ok(result);
+        }
+
+        [HttpPut("me/movies/{movieId}")]
+        public async Task<IActionResult> SetWatchStatus(int movieId, [FromBody] UpdateWatchStatusDto dto)
+        {
+            int userId = User.GetUserId();
+            await _service.SetWatchStatusAsync(userId, movieId, dto.status);
+
+            return Ok(new { message = "Film izleme durumu başarıyla güncellendi." });
         }
 
         [HttpGet("me/movies/{status}")]
