@@ -5,6 +5,7 @@ using MovieAPI.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using MovieAPI.Extensions;
+using MovieAPI.DTOs.ResponseDTOs;
 
 namespace MovieAPI.Services
 {
@@ -164,25 +165,47 @@ namespace MovieAPI.Services
                 throw new UnauthorizedAccessException("Bu özel bir listedir, görüntüleme yetkiniz yok.");
             }
 
-            var movies = await _context.CustomListMovies
-                               .Include(csm => csm.Movie)
-                               .ThenInclude(m => m.MovieGenres)
-                                   .ThenInclude(mg => mg.Genre)
-                                       .Where(csm => csm.CustomListId == listId)
-                                       .Select(csm => csm.Movie.ToResponseDto())
-                                       .ToListAsync();
+            var listMovies = await _context.CustomListMovies
+                .Include(csm => csm.Movie)
+                    .ThenInclude(m => m.MovieGenres)
+                        .ThenInclude(mg => mg.Genre)
+                .Where(csm => csm.CustomListId == listId)
+                .AsNoTracking()
+                .ToListAsync();
 
-            return new CustomListDetailDto(
+            var movies = listMovies
+                .Where(csm => csm.Movie != null)
+                .Select(csm => csm.Movie.ToResponseDto())
+                .ToList();
 
-                    list.Id,
-                    list.Title,
-                    list.Description,
-                    list.IsPublic,
-                    list.User.Email,
-                    movies,
-                    list.CreatedAt,
-                    movies.Count
-                );
+            return new CustomListDetailDto
+            (
+                list.Id,
+                list.Title,
+                list.Description,
+                list.IsPublic,
+                list.User?.Email ?? "Anonim",
+                movies,
+                list.CreatedAt,
+                movies.Count
+            );
+        }
+
+        public async Task<List<CustomListSummaryDto>> GetPublicListsAsync()
+        {
+            return await _context.CustomLists
+                .Where(l => l.IsPublic)
+                .OrderByDescending(l => l.CreatedAt)
+                .Select(l => new CustomListSummaryDto
+                (
+                    l.Id,
+                    l.Title,
+                    l.Description,
+                    l.IsPublic,
+                    l.CustomListMovies.Count(),
+                    l.CreatedAt
+                ))
+                .ToListAsync();
         }
     }
 }

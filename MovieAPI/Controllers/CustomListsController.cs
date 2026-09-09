@@ -63,6 +63,7 @@ namespace MovieAPI.Controllers
             return Ok(new { message = "Film listeye eklendi." });
         }
 
+
         [HttpDelete("{listId}/movies/{movieId}")]
         [Authorize]
         public async Task<IActionResult> RemoveMovieFromList(int listId, int movieId)
@@ -72,6 +73,7 @@ namespace MovieAPI.Controllers
             return Ok(new { message = "Film listeden çıkarıldı." });
         }
 
+
         [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> GetMyLists()
@@ -80,6 +82,7 @@ namespace MovieAPI.Controllers
             var lists = await _listService.GetUserListsAsync(userId);
             return Ok(lists);
         }
+
 
         [HttpGet("{listId}")]
         public async Task<IActionResult> GetListById(int listId)
@@ -91,8 +94,15 @@ namespace MovieAPI.Controllers
                 currentUserId = int.Parse(userIdClaim.Value);
             }
 
-            var list = await _listService.GetListByIdAsync(listId, (int)currentUserId);
+            var list = await _listService.GetListByIdAsync(listId, currentUserId);
             return Ok(list);
+        }
+
+        [HttpGet("public")]
+        public async Task<IActionResult> GetPublicLists()
+        {
+            var lists = await _listService.GetPublicListsAsync();
+            return Ok(lists);
         }
     }
 }
