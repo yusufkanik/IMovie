@@ -89,3 +89,22 @@ dotnet ef database update
 
 # Run backend server
 dotnet run
+```
+
+### 2. Frontend Setup
+```bash
+# Navigate to frontend folder
+cd client
+
+# Install dependencies
+npm install
+
+# Configure .env.local with API Base URL
+# NEXT_PUBLIC_API_URL=https://localhost:7020/api
+
+# Run development server
+npm run dev
+```
+
+### License
+This project is open-source and available under the MIT License.
